@@ -1,3 +1,8 @@
+pub const TWO: usize = 2;
+pub enum ProtocolError {
+    SizeError,
+}
+
 pub fn log(n: usize) -> u32 {
     let mut k = 0;
     let mut m = n;
