@@ -9,6 +9,9 @@
     - [ ] sigma function calculation
 - public coin protocol
     - [ ] c(x) -> h(x)
+- polynomial commitment scheme
+    - from `plonkish`
+    - from `arkworks`
 ---
 - sumcheck protocol for composite function
     - [ ] parallelization by MapReduce / sumcheck parallelization for each round
