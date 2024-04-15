@@ -7,3 +7,6 @@ edition = "2021"
 
 [dependencies]
 ff = "0.13.0"
+plonkish_backend = { git = "https://github.com/jeong0982/plonkish" }
+rayon = "1.8"
+halo2curves = { git = "https://github.com/privacy-scaling-explorations/halo2curves", tag = "v0.6.1", package = "halo2curves" }
