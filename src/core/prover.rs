@@ -1,5 +1,8 @@
 use super::precomputation::Table;
-use crate::{poly::multilinear::MultilinearPolynomial, utils::{ProtocolError, transpose}};
+use crate::{
+    poly::multilinear::MultilinearPolynomial,
+    utils::{transpose, ProtocolError},
+};
 use ff::PrimeField;
 use std::hash::Hash;
 

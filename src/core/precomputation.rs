@@ -55,3 +55,37 @@ impl<F: PrimeField + Hash> Table<F> {
 pub struct TablePolynomial<F> {
     poly: MultilinearPolynomial<F>,
 }
+
+#[cfg(test)]
+mod test {
+    use super::Table;
+    use crate::utils::ProtocolError;
+    use ff::Field;
+    use halo2curves::bn256::Fr;
+
+    #[test]
+    fn test_find_indices() -> Result<(), ProtocolError> {
+        let table_vec = vec![
+            Fr::from(11),
+            Fr::from(5),
+            Fr::from(3),
+            Fr::from(17),
+            Fr::from(2),
+            Fr::from(13),
+            Fr::from(7),
+            Fr::from(19),
+        ];
+        let table: Table<Fr> = table_vec.try_into()?;
+        let witness = vec![Fr::from(2), Fr::from(3), Fr::from(5), Fr::from(7)];
+        let indices = table.find_indices(&witness)?;
+
+        let res = vec![
+            vec![Fr::ONE, Fr::ZERO, Fr::ZERO],
+            vec![Fr::ZERO, Fr::ONE, Fr::ZERO],
+            vec![Fr::ZERO, Fr::ZERO, Fr::ONE],
+            vec![Fr::ONE, Fr::ONE, Fr::ZERO],
+        ];
+        assert_eq!(indices, res);
+        Ok(())
+    }
+}
