@@ -1,8 +1,12 @@
 use ff::Field;
-use rayon::prelude::{IntoParallelIterator, ParallelIterator};
-use std::fmt::Debug;
+use plonkish_backend::util::parallel::parallelize;
+use std::{
+    borrow::Borrow,
+    fmt::Debug,
+    ops::{Add, AddAssign, Mul, MulAssign, Sub, SubAssign},
+};
 
-use crate::core::precomputation::Table;
+use crate::{core::precomputation::Table, utils::impl_index};
 
 #[derive(Debug, Clone)]
 pub struct MultilinearPolynomial<F> {
@@ -16,8 +20,19 @@ pub struct MultilinearPolynomial<F> {
 // }
 
 impl<F: Field> MultilinearPolynomial<F> {
+    pub const fn zero() -> Self {
+        Self {
+            coeffs: Vec::new(),
+            num_vars: 0,
+        }
+    }
+
     fn new(coeffs: Vec<F>, num_vars: usize) -> Self {
         MultilinearPolynomial { coeffs, num_vars }
+    }
+
+    fn is_empty(&self) -> bool {
+        self.coeffs.is_empty()
     }
 
     pub fn eval_to_coeff(eval: &Vec<F>, num_vars: usize) -> MultilinearPolynomial<F> {
@@ -37,6 +52,137 @@ impl<F: Field> MultilinearPolynomial<F> {
 impl<F: Field> From<Table<F>> for MultilinearPolynomial<F> {
     fn from(value: Table<F>) -> Self {
         Self::eval_to_coeff(&value.table, value.num_vars)
+    }
+}
+
+impl_index!(MultilinearPolynomial, coeffs);
+
+impl<F: Field, P: Borrow<MultilinearPolynomial<F>>> Add<P> for &MultilinearPolynomial<F> {
+    type Output = MultilinearPolynomial<F>;
+
+    fn add(self, rhs: P) -> MultilinearPolynomial<F> {
+        let mut output = self.clone();
+        output += rhs;
+        output
+    }
+}
+
+impl<F: Field, P: Borrow<MultilinearPolynomial<F>>> AddAssign<P> for MultilinearPolynomial<F> {
+    fn add_assign(&mut self, rhs: P) {
+        let rhs = rhs.borrow();
+        match (self.is_empty(), rhs.is_empty()) {
+            (_, true) => {}
+            (true, false) => *self = rhs.clone(),
+            (false, false) => {
+                assert_eq!(self.num_vars, rhs.num_vars);
+                parallelize(&mut self.coeffs, |(lhs, start)| {
+                    for (lhs, rhs) in lhs.iter_mut().zip(rhs[start..].iter()) {
+                        *lhs += rhs;
+                    }
+                });
+            }
+        }
+    }
+}
+
+impl<F: Field, BF: Borrow<F>, P: Borrow<MultilinearPolynomial<F>>> AddAssign<(BF, P)>
+    for MultilinearPolynomial<F>
+{
+    fn add_assign(&mut self, (scalar, rhs): (BF, P)) {
+        let (scalar, rhs) = (scalar.borrow(), rhs.borrow());
+        match (self.is_empty(), rhs.is_empty() | (scalar == &F::ZERO)) {
+            (_, true) => {}
+            (true, false) => {
+                *self = rhs.clone();
+                *self *= scalar;
+            }
+            (false, false) => {
+                assert_eq!(self.num_vars, rhs.num_vars);
+
+                if scalar == &F::ONE {
+                    *self += rhs;
+                } else if scalar == &-F::ONE {
+                    *self -= rhs;
+                } else {
+                    parallelize(&mut self.coeffs, |(lhs, start)| {
+                        for (lhs, rhs) in lhs.iter_mut().zip(rhs[start..].iter()) {
+                            *lhs += &(*scalar * rhs);
+                        }
+                    });
+                }
+            }
+        }
+    }
+}
+
+impl<F: Field, P: Borrow<MultilinearPolynomial<F>>> Sub<P> for &MultilinearPolynomial<F> {
+    type Output = MultilinearPolynomial<F>;
+
+    fn sub(self, rhs: P) -> MultilinearPolynomial<F> {
+        let mut output = self.clone();
+        output -= rhs;
+        output
+    }
+}
+
+impl<F: Field, P: Borrow<MultilinearPolynomial<F>>> SubAssign<P> for MultilinearPolynomial<F> {
+    fn sub_assign(&mut self, rhs: P) {
+        let rhs = rhs.borrow();
+        match (self.is_empty(), rhs.is_empty()) {
+            (_, true) => {}
+            (true, false) => {
+                *self = rhs.clone();
+                *self *= &-F::ONE;
+            }
+            (false, false) => {
+                assert_eq!(self.num_vars, rhs.num_vars);
+
+                parallelize(&mut self.coeffs, |(lhs, start)| {
+                    for (lhs, rhs) in lhs.iter_mut().zip(rhs[start..].iter()) {
+                        *lhs -= rhs;
+                    }
+                });
+            }
+        }
+    }
+}
+
+impl<F: Field, BF: Borrow<F>, P: Borrow<MultilinearPolynomial<F>>> SubAssign<(BF, P)>
+    for MultilinearPolynomial<F>
+{
+    fn sub_assign(&mut self, (scalar, rhs): (BF, P)) {
+        *self += (-*scalar.borrow(), rhs);
+    }
+}
+
+impl<F: Field, BF: Borrow<F>> Mul<BF> for &MultilinearPolynomial<F> {
+    type Output = MultilinearPolynomial<F>;
+
+    fn mul(self, rhs: BF) -> MultilinearPolynomial<F> {
+        let mut output = self.clone();
+        output *= rhs;
+        output
+    }
+}
+
+impl<F: Field, BF: Borrow<F>> MulAssign<BF> for MultilinearPolynomial<F> {
+    fn mul_assign(&mut self, rhs: BF) {
+        let rhs = rhs.borrow();
+        if rhs == &F::ZERO {
+            self.coeffs = vec![F::ZERO; self.coeffs.len()]
+        } else if rhs == &-F::ONE {
+            parallelize(&mut self.coeffs, |(coeffs, _)| {
+                for eval in coeffs.iter_mut() {
+                    *eval = -*eval;
+                }
+            });
+        } else if rhs != &F::ONE {
+            parallelize(&mut self.coeffs, |(lhs, _)| {
+                for lhs in lhs.iter_mut() {
+                    *lhs *= rhs;
+                }
+            });
+        }
     }
 }
 
