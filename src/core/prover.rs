@@ -1,5 +1,5 @@
 use super::precomputation::Table;
-use crate::{poly::multilinear::MultilinearPolynomial, utils::ProtocolError};
+use crate::{poly::multilinear::MultilinearPolynomial, utils::{ProtocolError, transpose}};
 use ff::PrimeField;
 use std::hash::Hash;
 
@@ -39,7 +39,7 @@ impl<F: PrimeField + Hash> Prover<F> {
 
     fn set_domain_transformation(&mut self, table: Table<F>) -> Result<(), ProtocolError> {
         let indices = table.find_indices(&self.set)?;
-        let sigma: Vec<MultilinearPolynomial<F>> = indices
+        let sigma: Vec<MultilinearPolynomial<F>> = transpose(indices)
             .iter()
             .map(|idx| MultilinearPolynomial::eval_to_coeff(idx, idx.len()))
             .collect();
