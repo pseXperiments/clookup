@@ -1,4 +1,4 @@
-pub mod multivariate;
+pub mod multilinear;
 
 use crate::ff::Field;
 use std::fmt::Debug;
