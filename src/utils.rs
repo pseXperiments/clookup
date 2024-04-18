@@ -1,3 +1,12 @@
+pub use itertools::{chain, izip, Either, Itertools};
+pub use num_bigint::BigUint;
+pub use serde::{de::DeserializeOwned, Deserialize, Deserializer, Serialize, Serializer};
+pub use timer::{end_timer, start_timer, start_unit_timer};
+
+pub mod arithmetic;
+pub mod parallel;
+pub mod timer;
+
 #[derive(Debug)]
 pub enum ProtocolError {
     SizeError,
@@ -54,4 +63,24 @@ macro_rules! impl_index {
     };
 }
 
-pub(crate) use impl_index;
+macro_rules! izip_eq {
+    (@closure $p:pat => $tup:expr) => {
+        |$p| $tup
+    };
+    (@closure $p:pat => ($($tup:tt)*) , $_iter:expr $(, $tail:expr)*) => {
+        $crate::utils::izip_eq!(@closure ($p, b) => ($($tup)*, b) $(, $tail)*)
+    };
+    ($first:expr $(,)*) => {
+        itertools::__std_iter::IntoIterator::into_iter($first)
+    };
+    ($first:expr, $second:expr $(,)*) => {
+        $crate::utils::izip_eq!($first).zip_eq($second)
+    };
+    ($first:expr $(, $rest:expr)* $(,)*) => {
+        $crate::util::izip_eq!($first)
+            $(.zip_eq($rest))*
+            .map($crate::utils::izip_eq!(@closure a => (a) $(, $rest)*))
+    };
+}
+
+pub(crate) use {impl_index, izip_eq};
