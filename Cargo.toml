@@ -9,9 +9,18 @@ edition = "2021"
 num = "0.4.0"
 ff = "0.13.0"
 plonkish_backend = { git = "https://github.com/jeong0982/plonkish" }
+itertools = "0.10.5"
+num-bigint = "0.4.3"
+num-integer = "0.1.45"
+rand = "0.8"
+serde = { version = "1.0", features = ["derive"] }
+bitvec = "1.0.1"
 
 # bn256
-halo2curves = { git = "https://github.com/privacy-scaling-explorations/halo2curves", tag = "v0.6.1", package = "halo2curves" }
+halo2curves = { git = "https://github.com/privacy-scaling-explorations/halo2curves", tag = "0.3.3", package = "halo2curves", features = ["derive_serde"] }
+
+# timer
+ark-std = { version = "^0.4.0", default-features = false, optional = true }
 
 # concurrency
 rayon = "1.8"
