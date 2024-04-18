@@ -6,13 +6,19 @@ use std::{
     ops::{Add, AddAssign, Mul, MulAssign, Sub, SubAssign},
 };
 
-use crate::{core::precomputation::Table, utils::impl_index};
+use crate::{core::precomputation::Table, utils::impl_index, poly::Polynomial};
 
 #[derive(Debug, Clone)]
 pub struct MultilinearPolynomial<F> {
     evals: Vec<F>,
     coeffs: Vec<F>,
     num_vars: usize,
+}
+
+impl<F: Field> Default for MultilinearPolynomial<F> {
+    fn default() -> Self {
+        MultilinearPolynomial::zero()
+    }
 }
 
 impl<F: Field> MultilinearPolynomial<F> {
@@ -25,11 +31,19 @@ impl<F: Field> MultilinearPolynomial<F> {
     }
 
     pub fn new(evals: Vec<F>, coeffs: Vec<F>, num_vars: usize) -> Self {
-        MultilinearPolynomial { evals, coeffs, num_vars }
+        MultilinearPolynomial {
+            evals,
+            coeffs,
+            num_vars,
+        }
     }
 
     fn is_empty(&self) -> bool {
         self.evals.is_empty()
+    }
+
+    pub fn num_vars(&self) -> usize {
+        self.num_vars
     }
 
     pub fn evals(&self) -> &[F] {
@@ -219,6 +233,18 @@ impl<F: Field, BF: Borrow<F>> MulAssign<BF> for MultilinearPolynomial<F> {
                 }
             });
         }
+    }
+}
+
+impl<F: Field> Polynomial<F> for MultilinearPolynomial<F> {
+    type Point = Vec<F>;
+
+    fn coeffs(&self) -> &[F] {
+        self.evals.as_slice()
+    }
+
+    fn evaluate(&self, point: &Self::Point) -> F {
+        MultilinearPolynomial::evaluate(self, point)
     }
 }
 
