@@ -9,6 +9,9 @@ pub mod timer;
 
 #[derive(Debug)]
 pub enum ProtocolError {
+    InvalidSumcheck(String),
+    InvalidPcsParam(String),
+    InvalidPcsOpen(String),
     SizeError,
     NotInclusion,
 }
