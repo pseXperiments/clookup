@@ -10,6 +10,7 @@ use crate::{core::precomputation::Table, utils::impl_index};
 
 #[derive(Debug, Clone)]
 pub struct MultilinearPolynomial<F> {
+    evals: Vec<F>,
     coeffs: Vec<F>,
     num_vars: usize,
 }
@@ -22,17 +23,18 @@ pub struct MultilinearPolynomial<F> {
 impl<F: Field> MultilinearPolynomial<F> {
     pub const fn zero() -> Self {
         Self {
-            coeffs: Vec::new(),
+            evals: vec![],
+            coeffs: vec![],
             num_vars: 0,
         }
     }
 
-    fn new(coeffs: Vec<F>, num_vars: usize) -> Self {
-        MultilinearPolynomial { coeffs, num_vars }
+    pub fn new(evals: Vec<F>, coeffs: Vec<F>, num_vars: usize) -> Self {
+        MultilinearPolynomial { evals, coeffs, num_vars }
     }
 
     fn is_empty(&self) -> bool {
-        self.coeffs.is_empty()
+        self.evals.is_empty()
     }
 
     pub fn eval_to_coeff(eval: &Vec<F>, num_vars: usize) -> MultilinearPolynomial<F> {
@@ -45,7 +47,7 @@ impl<F: Field> MultilinearPolynomial<F> {
                 }
             }
         }
-        Self::new(result, num_vars)
+        Self::new(eval.clone(), result, num_vars)
     }
 }
 
@@ -55,7 +57,7 @@ impl<F: Field> From<Table<F>> for MultilinearPolynomial<F> {
     }
 }
 
-impl_index!(MultilinearPolynomial, coeffs);
+impl_index!(MultilinearPolynomial, evals);
 
 impl<F: Field, P: Borrow<MultilinearPolynomial<F>>> Add<P> for &MultilinearPolynomial<F> {
     type Output = MultilinearPolynomial<F>;
@@ -75,6 +77,11 @@ impl<F: Field, P: Borrow<MultilinearPolynomial<F>>> AddAssign<P> for Multilinear
             (true, false) => *self = rhs.clone(),
             (false, false) => {
                 assert_eq!(self.num_vars, rhs.num_vars);
+                parallelize(&mut self.evals, |(lhs, start)| {
+                    for (lhs, rhs) in lhs.iter_mut().zip(rhs[start..].iter()) {
+                        *lhs += rhs;
+                    }
+                });
                 parallelize(&mut self.coeffs, |(lhs, start)| {
                     for (lhs, rhs) in lhs.iter_mut().zip(rhs[start..].iter()) {
                         *lhs += rhs;
@@ -104,6 +111,11 @@ impl<F: Field, BF: Borrow<F>, P: Borrow<MultilinearPolynomial<F>>> AddAssign<(BF
                 } else if scalar == &-F::ONE {
                     *self -= rhs;
                 } else {
+                    parallelize(&mut self.evals, |(lhs, start)| {
+                        for (lhs, rhs) in lhs.iter_mut().zip(rhs[start..].iter()) {
+                            *lhs += &(*scalar * rhs);
+                        }
+                    });
                     parallelize(&mut self.coeffs, |(lhs, start)| {
                         for (lhs, rhs) in lhs.iter_mut().zip(rhs[start..].iter()) {
                             *lhs += &(*scalar * rhs);
@@ -137,6 +149,12 @@ impl<F: Field, P: Borrow<MultilinearPolynomial<F>>> SubAssign<P> for Multilinear
             (false, false) => {
                 assert_eq!(self.num_vars, rhs.num_vars);
 
+                parallelize(&mut self.evals, |(lhs, start)| {
+                    for (lhs, rhs) in lhs.iter_mut().zip(rhs[start..].iter()) {
+                        *lhs -= rhs;
+                    }
+                });
+
                 parallelize(&mut self.coeffs, |(lhs, start)| {
                     for (lhs, rhs) in lhs.iter_mut().zip(rhs[start..].iter()) {
                         *lhs -= rhs;
@@ -169,14 +187,25 @@ impl<F: Field, BF: Borrow<F>> MulAssign<BF> for MultilinearPolynomial<F> {
     fn mul_assign(&mut self, rhs: BF) {
         let rhs = rhs.borrow();
         if rhs == &F::ZERO {
-            self.coeffs = vec![F::ZERO; self.coeffs.len()]
+            self.evals = vec![F::ZERO; self.evals.len()];
+            self.coeffs = vec![F::ZERO; self.coeffs.len()];
         } else if rhs == &-F::ONE {
-            parallelize(&mut self.coeffs, |(coeffs, _)| {
-                for eval in coeffs.iter_mut() {
+            parallelize(&mut self.evals, |(evals, _)| {
+                for eval in evals.iter_mut() {
                     *eval = -*eval;
                 }
             });
+            parallelize(&mut self.coeffs, |(coeffs, _)| {
+                for coeff in coeffs.iter_mut() {
+                    *coeff = -*coeff;
+                }
+            });
         } else if rhs != &F::ONE {
+            parallelize(&mut self.evals, |(lhs, _)| {
+                for lhs in lhs.iter_mut() {
+                    *lhs *= rhs;
+                }
+            });
             parallelize(&mut self.coeffs, |(lhs, _)| {
                 for lhs in lhs.iter_mut() {
                     *lhs *= rhs;
