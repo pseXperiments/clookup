@@ -1,5 +1,6 @@
 use ff::Field;
 use plonkish_backend::util::parallel::parallelize;
+use serde::{Deserialize, Serialize};
 use std::{
     borrow::Borrow,
     fmt::Debug,
@@ -8,7 +9,7 @@ use std::{
 
 use crate::{core::precomputation::Table, utils::impl_index, poly::Polynomial};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MultilinearPolynomial<F> {
     evals: Vec<F>,
     coeffs: Vec<F>,
