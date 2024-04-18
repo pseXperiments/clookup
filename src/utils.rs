@@ -6,6 +6,8 @@ pub use timer::{end_timer, start_timer, start_unit_timer};
 pub mod arithmetic;
 pub mod parallel;
 pub mod timer;
+pub mod transcript;
+pub mod hash;
 
 #[derive(Debug)]
 pub enum ProtocolError {
@@ -14,6 +16,7 @@ pub enum ProtocolError {
     InvalidPcsOpen(String),
     SizeError,
     NotInclusion,
+    Transcript(std::io::ErrorKind, String),
 }
 
 pub fn transpose<T>(v: Vec<Vec<T>>) -> Vec<Vec<T>> {
