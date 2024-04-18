@@ -15,11 +15,6 @@ pub struct MultilinearPolynomial<F> {
     num_vars: usize,
 }
 
-// #[derive(Debug, Clone)]
-// pub enum MultivariatePolynomial<F: Field> {
-//     Coeff(CoefficientForm<F>),
-// }
-
 impl<F: Field> MultilinearPolynomial<F> {
     pub const fn zero() -> Self {
         Self {
@@ -35,6 +30,18 @@ impl<F: Field> MultilinearPolynomial<F> {
 
     fn is_empty(&self) -> bool {
         self.evals.is_empty()
+    }
+
+    pub fn evals(&self) -> &[F] {
+        &self.evals
+    }
+
+    pub fn into_evals(self) -> Vec<F> {
+        self.evals
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &F> {
+        self.evals.iter()
     }
 
     pub fn eval_to_coeff(eval: &Vec<F>, num_vars: usize) -> MultilinearPolynomial<F> {
