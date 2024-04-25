@@ -64,6 +64,10 @@ impl<F: PrimeField + Hash> Table<F> {
         }
         Ok(indices)
     }
+
+    pub fn polynomial(&self) -> MultilinearPolynomial<F> {
+        MultilinearPolynomial::eval_to_coeff(&self.table, self.num_vars)
+    }
 }
 
 #[derive(Clone, Debug)]
