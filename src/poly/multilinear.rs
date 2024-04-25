@@ -75,7 +75,7 @@ impl<F: Field> MultilinearPolynomial<F> {
 
 impl<F: Field> From<Table<F>> for MultilinearPolynomial<F> {
     fn from(value: Table<F>) -> Self {
-        Self::eval_to_coeff(&value.table, value.num_vars)
+        Self::eval_to_coeff(value.table(), value.num_vars())
     }
 }
 

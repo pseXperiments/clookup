@@ -1,10 +1,10 @@
 use super::precomputation::Table;
 use crate::{
-    poly::multilinear::MultilinearPolynomial,
-    utils::{transpose, ProtocolError},
+    pcs::PolynomialCommitmentScheme, poly::multilinear::MultilinearPolynomial, utils::{transcript::TranscriptWrite, transpose, ProtocolError}
 };
 use ff::PrimeField;
-use std::hash::Hash;
+use rand::RngCore;
+use std::{cmp::max, hash::Hash, marker::PhantomData};
 
 #[derive(Clone, Debug)]
 struct DomainTransformation<F> {
@@ -22,31 +22,36 @@ impl<F> DomainTransformation<F> {
 }
 
 #[derive(Clone, Debug)]
-struct Prover<F> {
-    set: Vec<F>,
-    poly: MultilinearPolynomial<F>,
-    domain_trans: DomainTransformation<F>,
-}
+struct Prover<F: PrimeField + Hash, Pcs: PolynomialCommitmentScheme<F, Polynomial = MultilinearPolynomial<F>>,> (PhantomData<F>, PhantomData<Pcs>);
 
-impl<F: PrimeField + Hash> Prover<F> {
-    fn setup(set: Vec<F>) -> Self {
-        let num_vars = set.len().ilog2() as usize;
-        let poly = MultilinearPolynomial::eval_to_coeff(&set, num_vars);
-        let domain_trans = DomainTransformation::empty();
-        Prover {
-            set,
-            poly,
-            domain_trans,
-        }
+impl<F: PrimeField + Hash, Pcs: PolynomialCommitmentScheme<F, Polynomial = MultilinearPolynomial<F>>> Prover<F, Pcs> {
+    fn setup(
+        table: &Table<F>,
+        witness: &Vec<F>,
+        rng: impl RngCore,
+    ) -> Result<Pcs::Param, ProtocolError> {
+        let poly_size = max(table.len(), witness.len());
+        let batch_size = 1 + 1 + table.num_vars();
+        Pcs::setup(poly_size, batch_size, rng)
     }
 
-    fn set_domain_transformation(&mut self, table: Table<F>) -> Result<(), ProtocolError> {
-        let indices = table.find_indices(&self.set)?;
+    fn set_domain_transformation(
+        table: &Table<F>,
+        witness: &Vec<F>,
+    ) -> Result<Vec<MultilinearPolynomial<F>>, ProtocolError> {
+        let indices = table.find_indices(&witness)?;
         let sigma: Vec<MultilinearPolynomial<F>> = transpose(indices)
             .iter()
             .map(|idx| MultilinearPolynomial::eval_to_coeff(idx, idx.len()))
             .collect();
-        self.domain_trans = DomainTransformation::new(sigma);
-        Ok(())
+        Ok(sigma)
+    }
+
+    pub fn prove(
+        transcript: &mut impl TranscriptWrite<Pcs::CommitmentChunk, F>,
+        table: &Table<F>,
+        witness: &Vec<F>,
+    ) -> Result<(), ProtocolError> {
+        todo!()
     }
 }

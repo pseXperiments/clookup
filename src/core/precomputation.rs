@@ -5,10 +5,25 @@ use std::{collections::HashMap, hash::Hash};
 
 #[derive(Clone, Debug)]
 pub struct Table<F> {
-    pub table: Vec<F>,
+    table: Vec<F>,
     /// Table size should be 2^k
-    pub num_vars: usize,
+    num_vars: usize,
     index_map: HashMap<F, usize>,
+}
+
+impl<F> Table<F> {
+    pub fn num_vars(&self) -> usize {
+        self.num_vars
+    }
+
+    pub fn len(&self) -> usize {
+        assert_eq!(self.table.len(), 1 << self.num_vars);
+        self.table.len()
+    }
+
+    pub fn table(&self) -> &Vec<F> {
+        &self.table
+    }
 }
 
 impl<F: Field + Hash> TryFrom<Vec<F>> for Table<F> {
