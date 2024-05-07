@@ -112,30 +112,4 @@ mod test {
             assert_eq!(virtual_poly.evals()[i].odd, expected_odd);
         }
     }
-
-    // #[test]
-    // fn test_fold_in_half() {
-    //     let list_size = 8;
-    //     let linear_lagrange_vec = (0..list_size)
-    //         .map(|_| get_random_linear_lagrange::<F>())
-    //         .collect::<Vec<LinearLagrange<F>>>();
-    //     let mut lagrange_list: LinearLagrangeList<F> =
-    //         LinearLagrangeList::new(&list_size, &linear_lagrange_vec);
-    //     let size_before = lagrange_list.size;
-
-    //     let alpha: F = random_field_element();
-    //     lagrange_list.fold_in_half(alpha);
-    //     let size_after = lagrange_list.size;
-    //     assert_eq!(2 * size_after, size_before);
-
-    //     for i in 0..lagrange_list.size {
-    //         let expected_even =
-    //             (F::ONE - alpha) * linear_lagrange_vec[i].even + alpha * linear_lagrange_vec[i].odd;
-    //         let expected_odd = (F::ONE - alpha) * linear_lagrange_vec[size_after + i].even
-    //             + alpha * linear_lagrange_vec[size_after + i].odd;
-
-    //         assert_eq!(lagrange_list.list[i].even, expected_even);
-    //         assert_eq!(lagrange_list.list[i].odd, expected_odd);
-    //     }
-    // }
 }
