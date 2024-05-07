@@ -3,8 +3,7 @@ use crate::{
     utils::{
         arithmetic::Field,
         transcript::{TranscriptRead, TranscriptWrite},
-        DeserializeOwned, Serialize,
-        ProtocolError,
+        DeserializeOwned, ProtocolError, Serialize,
     },
 };
 use rand::RngCore;
@@ -31,7 +30,11 @@ pub trait PolynomialCommitmentScheme<F: Field>: Clone + Debug {
         + DeserializeOwned;
     type CommitmentChunk: Clone + Debug + Default;
 
-    fn setup(poly_size: usize, batch_size: usize, rng: impl RngCore) -> Result<Self::Param, ProtocolError>;
+    fn setup(
+        poly_size: usize,
+        batch_size: usize,
+        rng: impl RngCore,
+    ) -> Result<Self::Param, ProtocolError>;
 
     fn trim(
         param: &Self::Param,
@@ -39,7 +42,10 @@ pub trait PolynomialCommitmentScheme<F: Field>: Clone + Debug {
         batch_size: usize,
     ) -> Result<(Self::ProverParam, Self::VerifierParam), ProtocolError>;
 
-    fn commit(pp: &Self::ProverParam, poly: &Self::Polynomial) -> Result<Self::Commitment, ProtocolError>;
+    fn commit(
+        pp: &Self::ProverParam,
+        poly: &Self::Polynomial,
+    ) -> Result<Self::Commitment, ProtocolError>;
 
     fn commit_and_write(
         pp: &Self::ProverParam,

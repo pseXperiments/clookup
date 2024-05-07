@@ -93,9 +93,7 @@ fn quotients<F: Field, T>(
 
 mod additive {
     use crate::{
-        pcs::{
-            Additive, Evaluation, Point, PolynomialCommitmentScheme,
-        },
+        pcs::{Additive, Evaluation, Point, PolynomialCommitmentScheme},
         poly::multilinear::MultilinearPolynomial,
         utils::{
             arithmetic::PrimeField,

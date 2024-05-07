@@ -1,8 +1,7 @@
 use crate::utils::{
-        arithmetic::{fe_mod_from_le_bytes, Coordinates, CurveAffine, PrimeField},
-        hash::{Hash, Keccak256, Output, Update},
-        Itertools,
-        ProtocolError,
+    arithmetic::{fe_mod_from_le_bytes, Coordinates, CurveAffine, PrimeField},
+    hash::{Hash, Keccak256, Output, Update},
+    Itertools, ProtocolError,
 };
 use halo2curves::{bn256, grumpkin, pasta};
 use std::{
@@ -73,7 +72,10 @@ pub trait TranscriptRead<C, F>: Transcript<C, F> + FieldTranscriptRead<F> {
 pub trait TranscriptWrite<C, F>: Transcript<C, F> + FieldTranscriptWrite<F> {
     fn write_commitment(&mut self, comm: &C) -> Result<(), ProtocolError>;
 
-    fn write_commitments<'a>(&mut self, comms: impl IntoIterator<Item = &'a C>) -> Result<(), ProtocolError>
+    fn write_commitments<'a>(
+        &mut self,
+        comms: impl IntoIterator<Item = &'a C>,
+    ) -> Result<(), ProtocolError>
     where
         C: 'a,
     {

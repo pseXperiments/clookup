@@ -1,3 +1,8 @@
+use crate::{
+    core::precomputation::Table,
+    poly::Polynomial,
+    utils::{impl_index, random_fe},
+};
 use ff::Field;
 use plonkish_backend::util::parallel::parallelize;
 use serde::{Deserialize, Serialize};
@@ -6,8 +11,6 @@ use std::{
     fmt::Debug,
     ops::{Add, AddAssign, Mul, MulAssign, Sub, SubAssign},
 };
-
-use crate::{core::precomputation::Table, utils::impl_index, poly::Polynomial};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MultilinearPolynomial<F> {

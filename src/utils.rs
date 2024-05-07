@@ -1,13 +1,14 @@
+use ff::Field;
 pub use itertools::{chain, izip, Either, Itertools};
 pub use num_bigint::BigUint;
 pub use serde::{de::DeserializeOwned, Deserialize, Deserializer, Serialize, Serializer};
 pub use timer::{end_timer, start_timer, start_unit_timer};
 
 pub mod arithmetic;
+pub mod hash;
 pub mod parallel;
 pub mod timer;
 pub mod transcript;
-pub mod hash;
 
 #[derive(Debug)]
 pub enum ProtocolError {
@@ -90,3 +91,8 @@ macro_rules! izip_eq {
 }
 
 pub(crate) use {impl_index, izip_eq};
+
+pub fn random_fe<F: Field>() -> F {
+    let mut rng = rand::thread_rng();
+    F::random(rng)
+}
