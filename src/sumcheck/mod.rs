@@ -2,12 +2,13 @@ use std::fmt::Debug;
 
 use ff::Field;
 use itertools::Itertools;
-use rand::RngCore;
 
-use crate::utils::{
-    random_fe,
-    transcript::{FieldTranscriptRead, FieldTranscriptWrite},
-    ProtocolError,
+use crate::{
+    poly::multilinear::MultilinearPolynomial,
+    utils::{
+        transcript::{FieldTranscriptRead, FieldTranscriptWrite},
+        ProtocolError,
+    },
 };
 
 pub mod classic;
@@ -20,72 +21,59 @@ pub(super) struct EvalPair<F: Field> {
 }
 
 #[derive(Clone, Debug)]
-pub struct VirtualPolynomial<F: Field> {
+pub(super) struct EvalTable<F: Field> {
     num_vars: usize,
-    evals: Vec<EvalPair<F>>,
+    table: Vec<EvalPair<F>>,
 }
 
-impl<F: Field> VirtualPolynomial<F> {
-    pub fn new(num_vars: usize, evals: Vec<F>) -> Self {
-        assert_eq!(evals.len(), 1 << num_vars);
-        let evals = evals[..1 << (num_vars - 1)]
+impl<F: Field> EvalTable<F> {
+    pub fn new(num_vars: usize, poly: &MultilinearPolynomial<F>) -> Self {
+        assert_eq!(poly.evals().len(), 1 << num_vars);
+        let table = poly
             .iter()
+            .take(1 << (num_vars - 1))
             .copied()
-            .zip(evals[(1 << (num_vars - 1))..].iter().copied())
+            .zip(poly.iter().skip(1 << (num_vars - 1)).copied())
             .map(|(even, odd)| EvalPair { even, odd })
             .collect_vec();
-        Self { num_vars, evals }
+        Self { num_vars, table }
     }
 
     pub fn size(&self) -> usize {
-        self.evals.len()
+        self.table.len()
     }
 
-    pub(super) fn evals(&self) -> &Vec<EvalPair<F>> {
-        &self.evals
+    pub(super) fn table(&self) -> &Vec<EvalPair<F>> {
+        &self.table
     }
 
     pub fn fold_into_half(&mut self, challenge: F) {
-        for i in 0..self.evals.len() / 2 {
-            let eval_pair_distant = self.evals[i + self.evals.len() / 2].clone();
-            let eval_pair = &mut self.evals[i];
+        for i in 0..self.table.len() / 2 {
+            let eval_pair_distant = self.table[i + self.table.len() / 2].clone();
+            let eval_pair = &mut self.table[i];
             eval_pair.even = eval_pair.even + challenge * (eval_pair.odd - eval_pair.even);
             eval_pair.odd = eval_pair_distant.even
                 + challenge * (eval_pair_distant.odd - eval_pair_distant.even);
         }
         self.num_vars -= 1;
-        self.evals.truncate(self.evals.len() / 2);
-    }
-
-    pub fn get_random_virtual(num_vars: usize) -> Self {
-        Self {
-            num_vars,
-            evals: (0..1 << num_vars)
-                .map(|_| EvalPair {
-                    even: random_fe(),
-                    odd: random_fe(),
-                })
-                .collect(),
-        }
+        self.table.truncate(self.table.len() / 2);
     }
 }
 
 pub struct VirtualPolynomial<F: Field> {
-    num_vars: usize,
     polys: Vec<EvalTable<F>>,
 }
 
 impl<F: Field> VirtualPolynomial<F> {
     pub fn new(num_vars: usize, polys: &Vec<MultilinearPolynomial<F>>) -> Self {
-        assert_eq!(polys[0].evals().len(), 1 << num_vars);
         let polys = polys
             .iter()
             .map(|poly| EvalTable::new(num_vars, poly))
             .collect_vec();
-        Self { num_vars, polys }
+        Self { polys }
     }
 
-    pub fn polys(&self) -> &Vec<EvalTable<F>> {
+    pub(super) fn polys(&self) -> &Vec<EvalTable<F>> {
         &self.polys
     }
 

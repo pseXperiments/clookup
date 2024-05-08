@@ -1,5 +1,4 @@
 use super::{SumCheck, VirtualPolynomial};
-use crate::poly::multilinear::MultilinearPolynomial;
 use crate::utils::transcript::{FieldTranscriptRead, FieldTranscriptWrite};
 use crate::utils::ProtocolError;
 use ff::{Field, PrimeField};
@@ -10,7 +9,6 @@ struct ClassicSumcheck;
 #[derive(Clone, Debug)]
 struct ClassicSumcheckProverParam<F: Field> {
     num_vars: usize,
-    round: usize,
     max_degree: usize,
     combine_function: fn(&Vec<F>) -> F,
 }
@@ -26,9 +24,8 @@ impl<F: PrimeField> SumCheck<F> for ClassicSumcheck {
 
     fn prove(
         pp: &Self::ProverParam,
-        num_vars: usize,
         sum: F,
-        mut virtual_polys: Vec<VirtualPolynomial<F>>,
+        mut virtual_poly: VirtualPolynomial<F>,
         transcript: &mut impl FieldTranscriptWrite<F>,
     ) -> Result<(F, Vec<F>), ProtocolError> {
         // Declare r_polys and initialise it with 0s
@@ -40,14 +37,14 @@ impl<F: PrimeField> SumCheck<F> for ClassicSumcheck {
         transcript.write_field_element(&sum)?;
 
         for round_index in 0..pp.num_vars {
-            let virtual_polynomial_len = virtual_polys[0].evals().len();
             for k in 0..(r_degree + 1) {
-                for i in 0..virtual_polynomial_len {
-                    let evaluations_at_k = virtual_polys
+                for i in 0..virtual_poly.polys()[0].size() {
+                    let evaluations_at_k = virtual_poly
+                        .polys()
                         .iter()
-                        .map(|virtual_poly| {
-                            let o = virtual_poly.evals()[i].odd;
-                            let e = virtual_poly.evals()[i].even;
+                        .map(|poly| {
+                            let o = poly.table()[i].odd;
+                            let e = poly.table()[i].even;
                             e + F::from(k as u64) * (o - e)
                         })
                         .collect::<Vec<F>>();
@@ -63,16 +60,13 @@ impl<F: PrimeField> SumCheck<F> for ClassicSumcheck {
             let alpha = transcript.squeeze_challenge();
 
             // update prover state polynomials
-            for j in 0..virtual_polys.len() {
-                virtual_polys[j].fold_into_half(alpha);
-            }
+            virtual_poly.fold_into_half(alpha);
         }
         Ok((F::ONE, vec![]))
     }
 
     fn verify(
         vp: &Self::VerifierParam,
-        num_vars: usize,
         degree: usize,
         sum: F,
         transcript: &mut impl FieldTranscriptRead<F>,
@@ -83,33 +77,37 @@ impl<F: PrimeField> SumCheck<F> for ClassicSumcheck {
 
 #[cfg(test)]
 mod test {
-    use crate::sumcheck::classic::*;
+    use crate::{
+        poly::multilinear::MultilinearPolynomial,
+        sumcheck::EvalTable,
+    };
     use ff::Field;
     use halo2curves::bn256::Fr;
 
     #[test]
     fn test_fold_into_half() {
-        let num_vars = 3;
-        let evals_list = (0..1 << num_vars)
+        let num_vars = 16;
+        let evals = (0..1 << num_vars)
             .map(|_| crate::utils::random_fe())
             .collect::<Vec<Fr>>();
+        let poly = MultilinearPolynomial::new(evals, vec![], num_vars);
 
-        let mut virtual_poly: VirtualPolynomial<Fr> = VirtualPolynomial::new(num_vars, evals_list);
-        let evals = virtual_poly.evals().clone();
-        let size_before = virtual_poly.size();
+        let mut eval_table = EvalTable::new(num_vars, &poly);
+        let evals = eval_table.table().clone();
+        let size_before = eval_table.size();
 
         let alpha: Fr = crate::utils::random_fe();
-        virtual_poly.fold_into_half(alpha);
-        let size_after = virtual_poly.size();
+        eval_table.fold_into_half(alpha);
+        let size_after = eval_table.size();
         assert_eq!(2 * size_after, size_before);
 
-        for i in 0..virtual_poly.size() {
+        for i in 0..eval_table.size() {
             let expected_even = (Fr::ONE - alpha) * evals[i].even + alpha * evals[i].odd;
             let expected_odd =
                 (Fr::ONE - alpha) * evals[size_after + i].even + alpha * evals[size_after + i].odd;
 
-            assert_eq!(virtual_poly.evals()[i].even, expected_even);
-            assert_eq!(virtual_poly.evals()[i].odd, expected_odd);
+            assert_eq!(eval_table.table()[i].even, expected_even);
+            assert_eq!(eval_table.table()[i].odd, expected_odd);
         }
     }
 }
