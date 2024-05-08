@@ -70,21 +70,45 @@ impl<F: Field> VirtualPolynomial<F> {
     }
 }
 
+pub struct VirtualPolynomial<F: Field> {
+    num_vars: usize,
+    polys: Vec<EvalTable<F>>,
+}
+
+impl<F: Field> VirtualPolynomial<F> {
+    pub fn new(num_vars: usize, polys: &Vec<MultilinearPolynomial<F>>) -> Self {
+        assert_eq!(polys[0].evals().len(), 1 << num_vars);
+        let polys = polys
+            .iter()
+            .map(|poly| EvalTable::new(num_vars, poly))
+            .collect_vec();
+        Self { num_vars, polys }
+    }
+
+    pub fn polys(&self) -> &Vec<EvalTable<F>> {
+        &self.polys
+    }
+
+    pub fn fold_into_half(&mut self, challenge: F) {
+        for poly in &mut self.polys {
+            poly.fold_into_half(challenge);
+        }
+    }
+}
+
 pub trait SumCheck<F: Field>: Clone + Debug {
     type ProverParam: Clone + Debug;
     type VerifierParam: Clone + Debug;
 
     fn prove(
         pp: &Self::ProverParam,
-        num_vars: usize,
         sum: F,
-        virtual_polys: Vec<VirtualPolynomial<F>>,
+        virtual_poly: VirtualPolynomial<F>,
         transcript: &mut impl FieldTranscriptWrite<F>,
     ) -> Result<(F, Vec<F>), ProtocolError>;
 
     fn verify(
         vp: &Self::VerifierParam,
-        num_vars: usize,
         degree: usize,
         sum: F,
         transcript: &mut impl FieldTranscriptRead<F>,
