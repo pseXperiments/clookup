@@ -1,10 +1,15 @@
+use crate::utils::parallel::parallelize;
 use crate::{
     core::precomputation::Table,
     poly::Polynomial,
-    utils::{impl_index, random_fe},
+    utils::{
+        arithmetic::div_ceil,
+        impl_index,
+        parallel::{num_threads, parallelize_iter},
+    },
 };
 use ff::Field;
-use plonkish_backend::util::parallel::parallelize;
+use num::Integer;
 use serde::{Deserialize, Serialize};
 use std::{
     borrow::Borrow,
@@ -73,6 +78,49 @@ impl<F: Field> MultilinearPolynomial<F> {
             }
         }
         Self::new(eval.clone(), result, num_vars)
+    }
+
+    pub fn evaluate(&self, point: &[F]) -> F {
+        todo!()
+    }
+
+    pub fn eq_xy(y: &[F]) -> Self {
+        if y.is_empty() {
+            return Self::zero();
+        }
+
+        let expand_serial = |next_evals: &mut [F], evals: &[F], y_i: &F| {
+            for (next_evals, eval) in next_evals.chunks_mut(2).zip(evals.iter()) {
+                next_evals[1] = *eval * y_i;
+                next_evals[0] = *eval - &next_evals[1];
+            }
+        };
+
+        let mut evals = vec![F::ONE];
+        for y_i in y.iter().rev() {
+            let mut next_evals = vec![F::ZERO; 2 * evals.len()];
+            if evals.len() < 32 {
+                expand_serial(&mut next_evals, &evals, y_i);
+            } else {
+                let mut chunk_size = div_ceil(evals.len(), num_threads());
+                if chunk_size.is_odd() {
+                    chunk_size += 1;
+                }
+                parallelize_iter(
+                    next_evals
+                        .chunks_mut(chunk_size)
+                        .zip(evals.chunks(chunk_size >> 1)),
+                    |(next_evals, evals)| expand_serial(next_evals, evals, y_i),
+                );
+            }
+            evals = next_evals;
+        }
+
+        Self {
+            evals,
+            coeffs: vec![],
+            num_vars: y.len(),
+        }
     }
 }
 
