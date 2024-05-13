@@ -8,7 +8,6 @@ edition = "2021"
 [dependencies]
 num = "0.4.0"
 ff = "0.13.0"
-plonkish_backend = { git = "https://github.com/jeong0982/plonkish" }
 itertools = "0.10.5"
 num-bigint = "0.4.3"
 num-integer = "0.1.45"
