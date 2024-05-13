@@ -3,7 +3,7 @@ use crate::{
         multilinear::{additive, err_too_many_variates, quotients, validate_input},
         Additive, Evaluation, Point, PolynomialCommitmentScheme,
     },
-    poly::{multilinear::MultilinearPolynomial, Polynomial},
+    poly::multilinear::MultilinearPolynomial,
     utils::{
         arithmetic::{
             batch_projective_to_affine, fixed_base_msm, variable_base_msm, window_size,

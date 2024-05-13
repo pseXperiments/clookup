@@ -1,6 +1,5 @@
 use crate::{poly::multilinear::MultilinearPolynomial, utils::ProtocolError};
 use ff::{Field, PrimeField};
-use num::Integer;
 use std::{collections::HashMap, hash::Hash};
 
 #[derive(Clone, Debug)]
