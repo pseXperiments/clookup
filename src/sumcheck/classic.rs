@@ -1,7 +1,10 @@
 use std::fmt::{Debug, Formatter, Result as fmtResult};
 use super::{SumCheck, VirtualPolynomial};
 use crate::utils::transcript::{FieldTranscriptRead, FieldTranscriptWrite};
-use crate::utils::ProtocolError;
+use crate::utils::{
+    arithmetic::{barycentric_interpolate, barycentric_weights},
+    ProtocolError,
+};
 use ff::{Field, PrimeField};
 
 #[derive(Clone, Debug)]
@@ -66,7 +69,7 @@ struct ClassicSumcheckVerifierParam {
 
 impl<F: PrimeField> SumCheck<F> for ClassicSumcheck {
     type ProverParam = ClassicSumcheckProverParam<F>;
-    type VerifierParam = ClassicSumcheckVerifierParam<F>;
+    type VerifierParam = ClassicSumcheckVerifierParam;
 
     fn prove(
         pp: &Self::ProverParam,
@@ -127,8 +130,53 @@ impl<F: PrimeField> SumCheck<F> for ClassicSumcheck {
         degree: usize,
         sum: F,
         transcript: &mut impl FieldTranscriptRead<F>,
-    ) -> Result<(Vec<F>, Vec<F>), ProtocolError> {
-        Ok((vec![], vec![]))
+    ) -> Result<(F, Vec<F>), ProtocolError> {
+        let (msgs, challenges) = {
+            let mut msgs = Vec::with_capacity(vp.num_vars);
+            let mut challenges = Vec::with_capacity(vp.num_vars);
+            for _ in 0..vp.num_vars {
+                msgs.push(transcript.read_field_elements(vp.max_degree + 1)?);
+                challenges.push(transcript.squeeze_challenge());
+            }
+            (msgs, challenges)
+        };
+
+        let mut expected_sum = sum.clone();
+        let points_vec: Vec<F> = (0..vp.max_degree + 1)
+            .map(|i| F::from_u128(i as u128))
+            .collect();
+        let weights = barycentric_weights(&points_vec);
+
+        for round_index in 0..vp.num_vars {
+            let round_poly_evaluations: &Vec<F> = &msgs[round_index];
+            if round_poly_evaluations.len() != (vp.max_degree + 1) {
+                return Err(ProtocolError::InvalidSumcheck(format!(
+                    "incorrect number of evaluations of the {}-th round polynomial",
+                    (round_index + 1)
+                )));
+            }
+
+            let round_poly_evaluation_at_0 = round_poly_evaluations[0];
+            let round_poly_evaluation_at_1 = round_poly_evaluations[1];
+            let computed_sum = round_poly_evaluation_at_0 + round_poly_evaluation_at_1;
+
+            // Check r_{i}(α_i) == r_{i+1}(0) + r_{i+1}(1)
+            if computed_sum != expected_sum {
+                return Err(ProtocolError::InvalidSumcheck(format!(
+                    "computed sum != expected sum"
+                )));
+            }
+
+            // Compute r_{i}(α_i) using barycentric interpolation
+            expected_sum = barycentric_interpolate(
+                &weights,
+                &points_vec,
+                round_poly_evaluations,
+                &challenges[round_index],
+            );
+        }
+
+        Ok((expected_sum, challenges))
     }
 }
 
