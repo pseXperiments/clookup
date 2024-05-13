@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::{borrow::Borrow, fmt::Debug};
 
 use ff::Field;
 use itertools::Itertools;
@@ -48,9 +48,13 @@ impl<F: Field> EvalTable<F> {
     }
 
     pub fn fold_into_half(&mut self, challenge: F) {
-        for i in 0..self.table.len() / 2 {
-            let eval_pair_distant = self.table[i + self.table.len() / 2].clone();
-            let eval_pair = &mut self.table[i];
+        assert_ne!(self.table.len(), 1);
+        let len = self.table.len();
+        let (pairs, pairs_distant) = self.table.split_at_mut(len / 2);
+        let pairs_distant = &*pairs_distant;
+        for i in 0..len / 2 {
+            let eval_pair_distant = &pairs_distant[i];
+            let eval_pair = &mut pairs[i];
             eval_pair.even = eval_pair.even + challenge * (eval_pair.odd - eval_pair.even);
             eval_pair.odd = eval_pair_distant.even
                 + challenge * (eval_pair_distant.odd - eval_pair_distant.even);
@@ -65,7 +69,7 @@ pub struct VirtualPolynomial<F: Field> {
 }
 
 impl<F: Field> VirtualPolynomial<F> {
-    pub fn new(num_vars: usize, polys: &Vec<MultilinearPolynomial<F>>) -> Self {
+    pub fn new(num_vars: usize, polys: &[&MultilinearPolynomial<F>]) -> Self {
         let polys = polys
             .iter()
             .map(|poly| EvalTable::new(num_vars, poly))
@@ -81,6 +85,19 @@ impl<F: Field> VirtualPolynomial<F> {
         for poly in &mut self.polys {
             poly.fold_into_half(challenge);
         }
+    }
+
+    /// called at the last round of sumcheck
+    pub fn evaluations(&self, challenge: F) -> Vec<F> {
+        self.polys.iter().for_each(|poly| {
+            assert_eq!(poly.size(), 1);
+        });
+        self.polys
+            .iter()
+            .map(|poly| {
+                poly.table()[0].even + challenge * (poly.table()[0].odd - poly.table()[0].even)
+            })
+            .collect_vec()
     }
 }
 
@@ -101,5 +118,5 @@ pub trait SumCheck<F: Field>: Clone + Debug {
         degree: usize,
         sum: F,
         transcript: &mut impl FieldTranscriptRead<F>,
-    ) -> Result<(Vec<F>, Vec<F>), ProtocolError>;
+    ) -> Result<(F, Vec<F>), ProtocolError>;
 }
