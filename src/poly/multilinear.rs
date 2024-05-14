@@ -81,6 +81,7 @@ impl<F: Field> MultilinearPolynomial<F> {
     }
 
     pub fn evaluate(&self, point: &[F]) -> F {
+        
         todo!()
     }
 

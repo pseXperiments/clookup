@@ -1,78 +1,52 @@
-use std::fmt::{Debug, Formatter, Result as fmtResult};
 use super::{SumCheck, VirtualPolynomial};
 use crate::utils::transcript::{FieldTranscriptRead, FieldTranscriptWrite};
 use crate::utils::{
     arithmetic::{barycentric_interpolate, barycentric_weights},
     ProtocolError,
 };
-use ff::{Field, PrimeField};
+use ff::PrimeField;
+use std::fmt::Debug;
 
 #[derive(Clone, Debug)]
-struct ClassicSumcheck;
-
-struct CombineFunction<F>(Box<dyn Fn(&Vec<F>) -> F>);
-
-pub trait CombineFunctionClone<F> {
-    fn clone_box(&self) -> Box<dyn Fn(&Vec<F>) -> F>;
-}
-
-impl<F> CombineFunctionClone<F> for dyn Fn(&Vec<F>) -> F {
-    fn clone_box(&self) -> Box<dyn Fn(&Vec<F>) -> F> {
-        Box::new(self.clone())
-    }
-}
-
-impl<F> Clone for CombineFunction<F> {
-    fn clone(&self) -> Self {
-        Self(self.0.clone_box())
-    }
-}
-
-impl<F> Debug for CombineFunction<F> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmtResult {
-        write!(f, "debug")
-    }
-}
-
-impl<F> CombineFunction<F> {
-    pub fn new(combine_function: impl Fn(&Vec<F>) -> F) -> Self {
-        Self(Box::new(combine_function))
-    }
-
-    pub fn apply(&self, evals: &Vec<F>) -> F {
-        (self.0)(evals)
-    }
-}
+pub struct ClassicSumcheck;
 
 #[derive(Clone, Debug)]
-pub struct ClassicSumcheckProverParam<F: Field> {
+pub struct ClassicSumcheckProverParam {
     num_vars: usize,
     max_degree: usize,
-    combine_function: CombineFunction<F>,
 }
 
-impl<F: Field> ClassicSumcheckProverParam<F> {
-    pub fn new(num_vars: usize, max_degree: usize, combine_function: impl Fn(&Vec<F>) -> F) -> Self {
+impl ClassicSumcheckProverParam {
+    pub fn new(num_vars: usize, max_degree: usize) -> Self {
         ClassicSumcheckProverParam {
             num_vars,
             max_degree,
-            combine_function: CombineFunction::new(combine_function),
         }
     }
 }
 
 #[derive(Clone, Debug)]
-struct ClassicSumcheckVerifierParam {
+pub struct ClassicSumcheckVerifierParam {
     num_vars: usize,
     max_degree: usize,
 }
 
+impl ClassicSumcheckVerifierParam {
+    pub fn new(num_vars: usize, max_degree: usize) -> Self {
+        ClassicSumcheckVerifierParam {
+            num_vars,
+            max_degree,
+        }
+    }
+}
+
 impl<F: PrimeField> SumCheck<F> for ClassicSumcheck {
-    type ProverParam = ClassicSumcheckProverParam<F>;
+    type ProverParam = ClassicSumcheckProverParam;
     type VerifierParam = ClassicSumcheckVerifierParam;
 
     fn prove(
         pp: &Self::ProverParam,
+        combine_function: &impl Fn(&Vec<F>) -> F,
         sum: F,
         mut virtual_poly: VirtualPolynomial<F>,
         transcript: &mut impl FieldTranscriptWrite<F>,
@@ -99,7 +73,7 @@ impl<F: PrimeField> SumCheck<F> for ClassicSumcheck {
                         .collect::<Vec<F>>();
 
                     // apply combine function
-                    r_polys[round_index][k] += pp.combine_function.apply(&evaluations_at_k);
+                    r_polys[round_index][k] += combine_function(&evaluations_at_k);
                 }
             }
             // append the round polynomial (i.e. prover message) to the transcript
@@ -112,6 +86,7 @@ impl<F: PrimeField> SumCheck<F> for ClassicSumcheck {
             if round_index == pp.num_vars - 1 {
                 // last round
                 evaluations = virtual_poly.evaluations(alpha);
+                transcript.write_field_elements(&evaluations)?;
             } else {
                 // update prover state polynomials
                 virtual_poly.fold_into_half(alpha);
@@ -129,9 +104,10 @@ impl<F: PrimeField> SumCheck<F> for ClassicSumcheck {
         vp: &Self::VerifierParam,
         degree: usize,
         sum: F,
+        num_polys: usize,
         transcript: &mut impl FieldTranscriptRead<F>,
-    ) -> Result<(F, Vec<F>), ProtocolError> {
-        let (msgs, challenges) = {
+    ) -> Result<(Vec<F>, Vec<F>), ProtocolError> {
+        let (mut msgs, challenges) = {
             let mut msgs = Vec::with_capacity(vp.num_vars);
             let mut challenges = Vec::with_capacity(vp.num_vars);
             for _ in 0..vp.num_vars {
@@ -141,6 +117,7 @@ impl<F: PrimeField> SumCheck<F> for ClassicSumcheck {
             (msgs, challenges)
         };
 
+        let evaluations = transcript.read_field_elements(num_polys)?;
         let mut expected_sum = sum.clone();
         let points_vec: Vec<F> = (0..vp.max_degree + 1)
             .map(|i| F::from_u128(i as u128))
@@ -175,8 +152,7 @@ impl<F: PrimeField> SumCheck<F> for ClassicSumcheck {
                 &challenges[round_index],
             );
         }
-
-        Ok((expected_sum, challenges))
+        Ok((evaluations, challenges))
     }
 }
 
@@ -186,14 +162,17 @@ mod test {
 
     use crate::{
         poly::multilinear::MultilinearPolynomial,
-        sumcheck::{EvalTable, SumCheck, VirtualPolynomial, classic::CombineFunction},
-        utils::{transcript::Keccak256Transcript, ProtocolError},
+        sumcheck::{EvalTable, SumCheck, VirtualPolynomial},
+        utils::{
+            transcript::{InMemoryTranscript, Keccak256Transcript},
+            ProtocolError,
+        },
     };
     use ff::Field;
     use halo2curves::bn256::Fr;
     use itertools::Itertools;
 
-    use super::{ClassicSumcheck, ClassicSumcheckProverParam};
+    use super::{ClassicSumcheck, ClassicSumcheckProverParam, ClassicSumcheckVerifierParam};
 
     #[test]
     fn test_fold_into_half() {
@@ -233,6 +212,7 @@ mod test {
             .take(3)
             .collect_vec();
         let combine_function = |evals: &Vec<Fr>| evals.iter().product();
+        let max_degree = 3;
         let claimed_sum = {
             (0..polys[0].evals().len())
                 .map(|idx| {
@@ -250,13 +230,31 @@ mod test {
         // Prover
         let pp = ClassicSumcheckProverParam {
             num_vars,
-            max_degree: 3,
-            combine_function: CombineFunction::new(combine_function),
+            max_degree,
         };
         let mut transcript = Keccak256Transcript::<Cursor<Vec<u8>>>::default();
         let virtual_poly = VirtualPolynomial::new(num_vars, polys.iter().collect_vec().borrow());
-        ClassicSumcheck::prove(&pp, claimed_sum, virtual_poly, &mut transcript)?;
-
+        ClassicSumcheck::prove(
+            &pp,
+            &combine_function,
+            claimed_sum,
+            virtual_poly,
+            &mut transcript,
+        )?;
+        let proof = transcript.into_proof();
+        let vp = &ClassicSumcheckVerifierParam {
+            num_vars,
+            max_degree,
+        };
+        let mut transcript =
+            Keccak256Transcript::<Cursor<Vec<u8>>>::from_proof((), proof.as_slice());
+        ClassicSumcheck::verify(
+            vp,
+            max_degree,
+            claimed_sum,
+            polys.len(),
+            &mut transcript,
+        )?;
         Ok(())
     }
 }

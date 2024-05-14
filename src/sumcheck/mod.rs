@@ -108,6 +108,7 @@ pub trait SumCheck<F: Field>: Clone + Debug {
     /// Returns the challenges and the evaluations of the polynomials at the challenges.
     fn prove(
         pp: &Self::ProverParam,
+        combine_function: &impl Fn(&Vec<F>) -> F,
         sum: F,
         virtual_poly: VirtualPolynomial<F>,
         transcript: &mut impl FieldTranscriptWrite<F>,
@@ -117,6 +118,7 @@ pub trait SumCheck<F: Field>: Clone + Debug {
         vp: &Self::VerifierParam,
         degree: usize,
         sum: F,
+        num_polys: usize,
         transcript: &mut impl FieldTranscriptRead<F>,
-    ) -> Result<(F, Vec<F>), ProtocolError>;
+    ) -> Result<(Vec<F>, Vec<F>), ProtocolError>;
 }
