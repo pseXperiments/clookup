@@ -6,7 +6,9 @@ use itertools::Itertools;
 use crate::{
     poly::multilinear::MultilinearPolynomial,
     utils::{
-        arithmetic::product, transcript::{FieldTranscriptRead, FieldTranscriptWrite}, ProtocolError
+        arithmetic::product,
+        transcript::{FieldTranscriptRead, FieldTranscriptWrite},
+        ProtocolError,
     },
 };
 
@@ -38,6 +40,10 @@ pub(super) struct EvalTable<F: Field> {
 
 impl<F: Field> EvalTable<F> {
     pub fn new(num_vars: usize, poly: &MultilinearPolynomial<F>) -> Self {
+        if poly.evals().len() == 0 {
+            let table = vec![EvalPair { even: F::ZERO, odd: F::ZERO }; 1 << num_vars - 1];
+            return Self { num_vars, table }
+        }
         assert_eq!(poly.evals().len(), 1 << num_vars);
         let table = poly
             .iter()
@@ -130,5 +136,5 @@ pub trait SumCheck<F: Field>: Clone + Debug {
         sum: F,
         num_polys: usize,
         transcript: &mut impl FieldTranscriptRead<F>,
-    ) -> Result<(Vec<F>, Vec<F>), ProtocolError>;
+    ) -> Result<(F, Vec<F>, Vec<F>), ProtocolError>;
 }

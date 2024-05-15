@@ -31,7 +31,7 @@ mod test {
         let (pp, vp) = {
             let rng = rand::thread_rng();
             let param = ClookupProver::setup(&table, &witness_vec, rng)?;
-            MultilinearKzg::trim(&param, 1 << table_dim, 1).unwrap()
+            MultilinearKzg::trim(&param, 1 << witness_dim, 1).unwrap()
         };
         let proof = {
             let mut transcript = Keccak256Transcript::<Cursor<Vec<u8>>>::default();

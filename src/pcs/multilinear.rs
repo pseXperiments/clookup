@@ -92,21 +92,42 @@ fn quotients<F: Field, T>(
 }
 
 mod additive {
+    use ff::Field;
     use itertools::Itertools;
     use std::{borrow::Cow, collections::HashMap, ops::Deref, ptr::addr_of};
 
     use crate::{
-        pcs::{Additive, Evaluation, Point, PolynomialCommitmentScheme}, poly::multilinear::MultilinearPolynomial, sumcheck::{classic::{ClassicSumcheck, ClassicSumcheckProverParam, ClassicSumcheckVerifierParam}, eq_xy_eval, SumCheck as _}, utils::{
+        pcs::{Additive, Evaluation, Point, PolynomialCommitmentScheme},
+        poly::multilinear::MultilinearPolynomial,
+        sumcheck::{
+            classic::{ClassicSumcheck, ClassicSumcheckProverParam, ClassicSumcheckVerifierParam},
+            eq_xy_eval, SumCheck as _, VirtualPolynomial,
+        },
+        utils::{
             arithmetic::{inner_product, PrimeField},
             end_timer, start_timer,
             transcript::{TranscriptRead, TranscriptWrite},
             ProtocolError,
-        }
+        },
     };
 
     use super::validate_input;
 
     type SumCheck = ClassicSumcheck;
+
+    fn generate_additive_comm_fn<'a, F: Field>(
+        info: &'a Vec<(usize, &F, &MultilinearPolynomial<F>)>,
+    ) -> impl Fn(&Vec<F>) -> F + 'a {
+        move |evals: &Vec<F>| {
+            info.iter()
+                .zip(evals.iter())
+                .map(|((idx, scalar, _), eval)| {
+                    eval.clone() * (*scalar).clone()
+                        // * eq_xys[*idx].evaluate(evals.as_slice()) <- eval is not a point
+                })
+                .fold(F::ZERO, |acc, val| acc + val)
+        }
+    }
 
     pub fn batch_open<F, Pcs>(
         pp: &Pcs::ProverParam,
@@ -151,43 +172,45 @@ mod additive {
             .iter()
             .unique_by(|(_, poly)| addr_of!(*poly.deref()))
             .collect_vec();
-        let unique_merged_poly_indices = unique_merged_polys
+
+        let used_polys = merged_polys
             .iter()
             .enumerate()
-            .map(|(idx, (_, poly))| (addr_of!(*poly.deref()), idx))
-            .collect::<HashMap<_, _>>();
-        let expression = merged_polys
+            .map(|(idx, (scalar, poly))| (idx, scalar, poly.deref()))
+            .collect_vec();
+
+        // eq_xys should be in virtual_polys
+        // and should be taken inside of generate_additive_comm_fn
+        let eq_xys = points
             .iter()
-            .enumerate()
-            .map(|(idx, (scalar, poly))| {
-                let poly = unique_merged_poly_indices[&addr_of!(*poly.deref())];
-                Expression::<F>::eq_xy(idx)
-                    * Expression::Polynomial(Query::new(poly, Rotation::cur()))
-                    * scalar
-            })
-            .sum();
-        let virtual_poly = VirtualPolynomial::new(
-            &expression,
-            unique_merged_polys.iter().map(|(_, poly)| poly.deref()),
-            &[],
-            points,
-        );
+            .map(|y| MultilinearPolynomial::eq_xy(y))
+            .collect_vec();
+        let combine_function = generate_additive_comm_fn(&used_polys);
+        let virtual_polys = used_polys.iter().map(|(_, _, poly)| { *poly }).collect_vec();
+        let virtual_poly = VirtualPolynomial::new(num_vars, virtual_polys.as_slice());
+
         let tilde_gs_sum =
             inner_product(evals.iter().map(Evaluation::value), &eq_xt[..evals.len()]);
         let spp = ClassicSumcheckProverParam::new(num_vars, 2);
-        let combine_function = todo!();
-        let (challenges, _) =
-            SumCheck::prove(&spp, combine_function, tilde_gs_sum, virtual_poly, transcript)?;
-
+        println!("PCS batch sumcheck");
+        let (challenges, _) = SumCheck::prove(
+            &spp,
+            &combine_function,
+            tilde_gs_sum,
+            virtual_poly,
+            transcript,
+        )?;
         let timer = start_timer(|| "g_prime");
         let eq_xy_evals = points
             .iter()
             .map(|point| eq_xy_eval(&challenges, point))
             .collect_vec();
         let g_prime = merged_polys
-            .into_iter()
+            .iter()
             .zip(eq_xy_evals.iter())
-            .map(|((scalar, poly), eq_xy_eval)| (scalar * eq_xy_eval, poly.into_owned()))
+            .map(|((scalar, poly), eq_xy_eval)| {
+                (scalar.clone() * eq_xy_eval, poly.clone().into_owned())
+            })
             .sum::<MultilinearPolynomial<_>>();
         end_timer(timer);
 
@@ -236,7 +259,7 @@ mod additive {
             inner_product(evals.iter().map(Evaluation::value), &eq_xt[..evals.len()]);
         let svp = ClassicSumcheckVerifierParam::new(num_vars, 2);
         let num_polys = 2;
-        let (challenges, g_prime_eval) =
+        let (g_prime_eval, _, challenges) =
             SumCheck::verify(&svp, 2, tilde_gs_sum, num_polys, transcript)?;
 
         let eq_xy_evals = points

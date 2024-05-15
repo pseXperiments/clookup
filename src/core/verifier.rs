@@ -40,7 +40,8 @@ impl<
         let ys = transcript.squeeze_challenges(witness_num_vars);
 
         let svp = ClassicSumcheckVerifierParam::new(witness_num_vars, max_degree);
-        let (evals, x) = ClassicSumcheck::verify(&svp, max_degree, F::ZERO, num_polys, transcript)?;
+        let (_, evals, x) =
+            ClassicSumcheck::verify(&svp, max_degree, F::ZERO, num_polys, transcript)?;
         let witness_poly_x = evals.first().unwrap();
         // let table_poly_x = evals.get(1).unwrap();
         let sigma_poly_x = evals.iter().skip(2).take(table_dimension).collect_vec();

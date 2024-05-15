@@ -88,6 +88,9 @@ impl<F: Field> MultilinearPolynomial<F> {
     }
 
     pub fn evaluate(&self, point: &[F]) -> F {
+        if self.is_empty() {
+            return F::ZERO;
+        }
         assert_eq!(point.len(), self.num_vars);
 
         let mut evals = Cow::Borrowed(self.evals());
