@@ -92,15 +92,21 @@ fn quotients<F: Field, T>(
 }
 
 mod additive {
+    use itertools::Itertools;
+    use std::{borrow::Cow, collections::HashMap, ops::Deref, ptr::addr_of};
+
     use crate::{
-        pcs::{Additive, Evaluation, Point, PolynomialCommitmentScheme},
-        poly::multilinear::MultilinearPolynomial,
-        utils::{
-            arithmetic::PrimeField,
+        pcs::{Additive, Evaluation, Point, PolynomialCommitmentScheme}, poly::multilinear::MultilinearPolynomial, sumcheck::{classic::{ClassicSumcheck, ClassicSumcheckProverParam, ClassicSumcheckVerifierParam}, eq_xy_eval, SumCheck as _}, utils::{
+            arithmetic::{inner_product, PrimeField},
+            end_timer, start_timer,
             transcript::{TranscriptRead, TranscriptWrite},
             ProtocolError,
-        },
+        }
     };
+
+    use super::validate_input;
+
+    type SumCheck = ClassicSumcheck;
 
     pub fn batch_open<F, Pcs>(
         pp: &Pcs::ProverParam,
@@ -116,7 +122,95 @@ mod additive {
         Pcs: PolynomialCommitmentScheme<F, Polynomial = MultilinearPolynomial<F>>,
         Pcs::Commitment: Additive<F>,
     {
-        todo!()
+        validate_input("batch open", num_vars, polys.clone(), points)?;
+
+        let ell = evals.len().next_power_of_two().ilog2() as usize;
+        let t = transcript.squeeze_challenges(ell);
+
+        let timer = start_timer(|| "merged_polys");
+        let eq_xt = MultilinearPolynomial::eq_xy(&t);
+        let merged_polys = evals.iter().zip(eq_xt.evals().iter()).fold(
+            vec![(F::ONE, Cow::<MultilinearPolynomial<_>>::default()); points.len()],
+            |mut merged_polys, (eval, eq_xt_i)| {
+                if merged_polys[eval.point()].1.is_zero() {
+                    merged_polys[eval.point()] = (*eq_xt_i, Cow::Borrowed(polys[eval.poly()]));
+                } else {
+                    let coeff = merged_polys[eval.point()].0;
+                    if coeff != F::ONE {
+                        merged_polys[eval.point()].0 = F::ONE;
+                        *merged_polys[eval.point()].1.to_mut() *= &coeff;
+                    }
+                    *merged_polys[eval.point()].1.to_mut() += (eq_xt_i, polys[eval.poly()]);
+                }
+                merged_polys
+            },
+        );
+        end_timer(timer);
+
+        let unique_merged_polys = merged_polys
+            .iter()
+            .unique_by(|(_, poly)| addr_of!(*poly.deref()))
+            .collect_vec();
+        let unique_merged_poly_indices = unique_merged_polys
+            .iter()
+            .enumerate()
+            .map(|(idx, (_, poly))| (addr_of!(*poly.deref()), idx))
+            .collect::<HashMap<_, _>>();
+        let expression = merged_polys
+            .iter()
+            .enumerate()
+            .map(|(idx, (scalar, poly))| {
+                let poly = unique_merged_poly_indices[&addr_of!(*poly.deref())];
+                Expression::<F>::eq_xy(idx)
+                    * Expression::Polynomial(Query::new(poly, Rotation::cur()))
+                    * scalar
+            })
+            .sum();
+        let virtual_poly = VirtualPolynomial::new(
+            &expression,
+            unique_merged_polys.iter().map(|(_, poly)| poly.deref()),
+            &[],
+            points,
+        );
+        let tilde_gs_sum =
+            inner_product(evals.iter().map(Evaluation::value), &eq_xt[..evals.len()]);
+        let spp = ClassicSumcheckProverParam::new(num_vars, 2);
+        let combine_function = todo!();
+        let (challenges, _) =
+            SumCheck::prove(&spp, combine_function, tilde_gs_sum, virtual_poly, transcript)?;
+
+        let timer = start_timer(|| "g_prime");
+        let eq_xy_evals = points
+            .iter()
+            .map(|point| eq_xy_eval(&challenges, point))
+            .collect_vec();
+        let g_prime = merged_polys
+            .into_iter()
+            .zip(eq_xy_evals.iter())
+            .map(|((scalar, poly), eq_xy_eval)| (scalar * eq_xy_eval, poly.into_owned()))
+            .sum::<MultilinearPolynomial<_>>();
+        end_timer(timer);
+
+        let (g_prime_comm, g_prime_eval) = if cfg!(feature = "sanity-check") {
+            let scalars = evals
+                .iter()
+                .zip(eq_xt.evals())
+                .map(|(eval, eq_xt_i)| eq_xy_evals[eval.point()] * eq_xt_i)
+                .collect_vec();
+            let bases = evals.iter().map(|eval| comms[eval.poly()]);
+            let comm = Pcs::Commitment::msm(&scalars, bases);
+            (comm, g_prime.evaluate(&challenges))
+        } else {
+            (Pcs::Commitment::default(), F::ZERO)
+        };
+        Pcs::open(
+            pp,
+            &g_prime,
+            &g_prime_comm,
+            &challenges,
+            &g_prime_eval,
+            transcript,
+        )
     }
 
     pub fn batch_verify<F, Pcs>(
@@ -132,6 +226,32 @@ mod additive {
         Pcs: PolynomialCommitmentScheme<F, Polynomial = MultilinearPolynomial<F>>,
         Pcs::Commitment: Additive<F>,
     {
-        todo!()
+        validate_input("batch verify", num_vars, [], points)?;
+
+        let ell = evals.len().next_power_of_two().ilog2() as usize;
+        let t = transcript.squeeze_challenges(ell);
+
+        let eq_xt = MultilinearPolynomial::eq_xy(&t);
+        let tilde_gs_sum =
+            inner_product(evals.iter().map(Evaluation::value), &eq_xt[..evals.len()]);
+        let svp = ClassicSumcheckVerifierParam::new(num_vars, 2);
+        let num_polys = 2;
+        let (challenges, g_prime_eval) =
+            SumCheck::verify(&svp, 2, tilde_gs_sum, num_polys, transcript)?;
+
+        let eq_xy_evals = points
+            .iter()
+            .map(|point| eq_xy_eval(&challenges, point))
+            .collect_vec();
+        let g_prime_comm = {
+            let scalars = evals
+                .iter()
+                .zip(eq_xt.evals())
+                .map(|(eval, eq_xt_i)| eq_xy_evals[eval.point()] * eq_xt_i)
+                .collect_vec();
+            let bases = evals.iter().map(|eval| comms[eval.poly()]);
+            Pcs::Commitment::msm(&scalars, bases)
+        };
+        Pcs::verify(vp, &g_prime_comm, &challenges, &g_prime_eval, transcript)
     }
 }

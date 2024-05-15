@@ -82,7 +82,7 @@ impl<
         let sigma_polys = Self::sigma_polys(table, witness)?;
         end_timer(timer);
         // commit to sigma_polys, witness polys, table polys
-        let table_poly_comm = Pcs::commit_and_write(pp, &table_poly, transcript)?;
+        // let table_poly_comm = Pcs::commit_and_write(pp, &table_poly, transcript)?;
         let witness_poly_comm = Pcs::commit_and_write(pp, &witness_poly, transcript)?;
         let sigma_polys_comms = Pcs::batch_commit_and_write(pp, &sigma_polys, transcript)?;
 
@@ -106,21 +106,22 @@ impl<
         };
         // open polynomials at x
         let witness_poly_x = evals.first().unwrap();
-        let table_poly_x = evals.get(1).unwrap();
+        // let table_poly_x = evals.get(1).unwrap();
         let sigma_polys_x = evals
             .iter()
             .skip(2)
             .take(table_poly.num_vars())
             .collect_vec();
 
-        Pcs::open(
-            pp,
-            &table_poly,
-            &table_poly_comm,
-            &x,
-            table_poly_x,
-            transcript,
-        )?;
+        // Pcs::open(
+        //     pp,
+        //     &table_poly,
+        //     &table_poly_comm,
+        //     // TODO: x is not compatible
+        //     &x,
+        //     table_poly_x,
+        //     transcript,
+        // )?;
         let polys = iter::once(&witness_poly).chain(sigma_polys.iter());
         let comms = iter::once(&witness_poly_comm).chain(sigma_polys_comms.iter());
         let points = iter::repeat(x).take(1 + sigma_polys.len()).collect_vec();

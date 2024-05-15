@@ -107,7 +107,7 @@ impl<F: PrimeField> SumCheck<F> for ClassicSumcheck {
         num_polys: usize,
         transcript: &mut impl FieldTranscriptRead<F>,
     ) -> Result<(Vec<F>, Vec<F>), ProtocolError> {
-        let (mut msgs, challenges) = {
+        let (msgs, challenges) = {
             let mut msgs = Vec::with_capacity(vp.num_vars);
             let mut challenges = Vec::with_capacity(vp.num_vars);
             for _ in 0..vp.num_vars {
@@ -248,13 +248,7 @@ mod test {
         };
         let mut transcript =
             Keccak256Transcript::<Cursor<Vec<u8>>>::from_proof((), proof.as_slice());
-        ClassicSumcheck::verify(
-            vp,
-            max_degree,
-            claimed_sum,
-            polys.len(),
-            &mut transcript,
-        )?;
+        ClassicSumcheck::verify(vp, max_degree, claimed_sum, polys.len(), &mut transcript)?;
         Ok(())
     }
 }

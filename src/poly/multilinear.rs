@@ -12,6 +12,7 @@ use crate::{
 use ff::Field;
 use num::Integer;
 use serde::{Deserialize, Serialize};
+use std::iter::Sum;
 use std::mem;
 use std::{
     borrow::{Borrow, Cow},
@@ -51,6 +52,10 @@ impl<F: Field> MultilinearPolynomial<F> {
 
     fn is_empty(&self) -> bool {
         self.evals.is_empty()
+    }
+
+    pub fn is_zero(&self) -> bool {
+        self.num_vars == 0
     }
 
     pub fn num_vars(&self) -> usize {
@@ -304,6 +309,45 @@ impl<F: Field, BF: Borrow<F>> MulAssign<BF> for MultilinearPolynomial<F> {
                 }
             });
         }
+    }
+}
+
+impl<'a, F: Field> Sum<&'a MultilinearPolynomial<F>> for MultilinearPolynomial<F> {
+    fn sum<I: Iterator<Item = &'a MultilinearPolynomial<F>>>(
+        mut iter: I,
+    ) -> MultilinearPolynomial<F> {
+        let init = match (iter.next(), iter.next()) {
+            (Some(lhs), Some(rhs)) => lhs + rhs,
+            (Some(lhs), None) => return lhs.clone(),
+            _ => unreachable!(),
+        };
+        iter.fold(init, |mut acc, poly| {
+            acc += poly;
+            acc
+        })
+    }
+}
+
+impl<F: Field> Sum<MultilinearPolynomial<F>> for MultilinearPolynomial<F> {
+    fn sum<I: Iterator<Item = MultilinearPolynomial<F>>>(iter: I) -> MultilinearPolynomial<F> {
+        iter.reduce(|mut acc, poly| {
+            acc += &poly;
+            acc
+        })
+        .unwrap()
+    }
+}
+
+impl<F: Field> Sum<(F, MultilinearPolynomial<F>)> for MultilinearPolynomial<F> {
+    fn sum<I: Iterator<Item = (F, MultilinearPolynomial<F>)>>(
+        mut iter: I,
+    ) -> MultilinearPolynomial<F> {
+        let (scalar, mut poly) = iter.next().unwrap();
+        poly *= &scalar;
+        iter.fold(poly, |mut acc, (scalar, poly)| {
+            acc += (&scalar, &poly);
+            acc
+        })
     }
 }
 

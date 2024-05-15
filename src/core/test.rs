@@ -1,15 +1,17 @@
 mod test {
-    use std::io::Cursor;
-    use std::cmp::max;
-    use crate::utils::{random_fe, ProtocolError, transcript::{Keccak256Transcript, InMemoryTranscript}};
-    use crate::core::{
-        precomputation::Table, prover::Prover, verifier::Verifier,
-    };
-    use crate::poly::multilinear::MultilinearPolynomial;
-    use crate::pcs::PolynomialCommitmentScheme;
+    use crate::core::{precomputation::Table, prover::Prover, verifier::Verifier};
     use crate::pcs::multilinear::kzg::MultilinearKzg;
+    use crate::pcs::PolynomialCommitmentScheme;
+    use crate::poly::multilinear::MultilinearPolynomial;
+    use crate::utils::{
+        random_fe,
+        transcript::{InMemoryTranscript, Keccak256Transcript},
+        ProtocolError,
+    };
     use halo2curves::bn256::{Bn256, Fr};
     use itertools::Itertools;
+    use std::cmp::max;
+    use std::io::Cursor;
 
     type ClookupProver = Prover<Fr, MultilinearKzg<Bn256>>;
     type ClookupVerifier = Verifier<Fr, MultilinearKzg<Bn256>>;
@@ -19,7 +21,11 @@ mod test {
         let table_dim = 4;
         let witness_dim = 2;
         let table_vec: Vec<Fr> = (0..1 << table_dim).map(|_| random_fe()).collect_vec();
-        let witness_vec = table_vec.iter().take(1 << witness_dim).cloned().collect_vec();
+        let witness_vec = table_vec
+            .iter()
+            .take(1 << witness_dim)
+            .cloned()
+            .collect_vec();
         let table: Table<Fr> = table_vec.try_into()?;
         let max_degree = 1 + max(2, table_dim);
         let (pp, vp) = {
@@ -32,7 +38,8 @@ mod test {
             ClookupProver::prove(&pp, &mut transcript, &table, &witness_vec)?;
             transcript.into_proof()
         };
-        let mut transcript = Keccak256Transcript::<Cursor<Vec<u8>>>::from_proof((), proof.as_slice());
+        let mut transcript =
+            Keccak256Transcript::<Cursor<Vec<u8>>>::from_proof((), proof.as_slice());
         ClookupVerifier::verify(&vp, &mut transcript, 21, table_dim, witness_dim, max_degree)?;
         Ok(())
     }

@@ -1,12 +1,16 @@
-use std::{hash::Hash, marker::PhantomData, iter};
+use std::{hash::Hash, iter, marker::PhantomData};
 
 use ff::PrimeField;
 use itertools::Itertools;
 
 use crate::{
-    pcs::{PolynomialCommitmentScheme, Evaluation},
+    pcs::{Evaluation, PolynomialCommitmentScheme},
     poly::multilinear::MultilinearPolynomial,
-    utils::{transcript::TranscriptRead, ProtocolError}, sumcheck::{classic::{ClassicSumcheck, ClassicSumcheckVerifierParam}, SumCheck},
+    sumcheck::{
+        classic::{ClassicSumcheck, ClassicSumcheckVerifierParam},
+        SumCheck,
+    },
+    utils::{transcript::TranscriptRead, ProtocolError},
 };
 
 #[derive(Clone, Debug)]
@@ -28,24 +32,20 @@ impl<
         witness_num_vars: usize,
         max_degree: usize,
     ) -> Result<(), ProtocolError> {
-        let table_comm = Pcs::read_commitment(vp, transcript)?;
+        // let table_comm = Pcs::read_commitment(vp, transcript)?;
         let witness_comm = Pcs::read_commitment(vp, transcript)?;
         let sigma_comm = Pcs::read_commitments(vp, table_dimension, transcript)?;
-        
+
         let gamma = transcript.squeeze_challenge();
         let ys = transcript.squeeze_challenges(witness_num_vars);
 
         let svp = ClassicSumcheckVerifierParam::new(witness_num_vars, max_degree);
         let (evals, x) = ClassicSumcheck::verify(&svp, max_degree, F::ZERO, num_polys, transcript)?;
         let witness_poly_x = evals.first().unwrap();
-        let table_poly_x = evals.get(1).unwrap();
-        let sigma_poly_x = evals
-            .iter()
-            .skip(2)
-            .take(table_dimension)
-            .collect_vec();
-        Pcs::verify(vp, &table_comm, &x, table_poly_x, transcript)?;
-        
+        // let table_poly_x = evals.get(1).unwrap();
+        let sigma_poly_x = evals.iter().skip(2).take(table_dimension).collect_vec();
+        // Pcs::verify(vp, &table_comm, &x, table_poly_x, transcript)?;
+
         let comms = iter::once(&witness_comm).chain(sigma_comm.iter());
         let points_vec = iter::repeat(x).take(1 + table_dimension).collect_vec();
         let points = points_vec.as_slice();

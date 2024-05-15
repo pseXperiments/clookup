@@ -1,18 +1,28 @@
 use std::{borrow::Borrow, fmt::Debug};
 
-use ff::Field;
+use ff::{Field, PrimeField};
 use itertools::Itertools;
 
 use crate::{
     poly::multilinear::MultilinearPolynomial,
     utils::{
-        transcript::{FieldTranscriptRead, FieldTranscriptWrite},
-        ProtocolError,
+        arithmetic::product, transcript::{FieldTranscriptRead, FieldTranscriptWrite}, ProtocolError
     },
 };
 
 pub mod classic;
 pub mod parallel;
+
+pub fn eq_xy_eval<F: PrimeField>(x: &[F], y: &[F]) -> F {
+    assert!(!x.is_empty());
+    assert_eq!(x.len(), y.len());
+
+    product(
+        x.iter()
+            .zip(y)
+            .map(|(x_i, y_i)| (*x_i * y_i).double() + F::ONE - x_i - y_i),
+    )
+}
 
 #[derive(Clone, Debug)]
 pub(super) struct EvalPair<F: Field> {
