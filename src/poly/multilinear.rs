@@ -10,6 +10,7 @@ use crate::{
     },
 };
 use ff::Field;
+use itertools::Itertools;
 use num::Integer;
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
@@ -96,6 +97,20 @@ impl<F: Field> MultilinearPolynomial<F> {
             }
         }
         Self::new(eval.clone(), result, num_vars)
+    }
+
+    // TODO : optimize
+    pub fn eval_by_coeff(&self, point: &[F]) -> F {
+        assert_eq!(point.len(), self.num_vars);
+        self.coeffs.iter().enumerate().map(|(i, coeff)| {
+            let indices = (0..self.num_vars).map(|j| (i >> j) & 1).collect_vec();
+            let mut result = F::ONE;
+            for (index, point) in indices.iter().zip(point.iter()) {
+                result *= if *index == 1 { *point } else { F::ONE };
+            }
+            result * coeff
+        })
+        .sum()
     }
 
     pub fn evaluate(&self, point: &[F]) -> F {
