@@ -62,7 +62,7 @@ impl<F: Field> MultilinearPolynomial<F> {
         )
     }
 
-    fn is_empty(&self) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.evals.is_empty()
     }
 
