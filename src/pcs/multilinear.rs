@@ -171,19 +171,12 @@ mod additive {
         );
         end_timer(timer);
 
-        let unique_merged_polys = merged_polys
-            .iter()
-            .unique_by(|(_, poly)| addr_of!(*poly.deref()))
-            .collect_vec();
-
         let used_polys = merged_polys
             .iter()
             .enumerate()
             .map(|(idx, (scalar, poly))| (idx, scalar, poly.deref()))
             .collect_vec();
 
-        // eq_xys should be in virtual_polys
-        // and should be taken inside of generate_additive_comm_fn
         let eq_xys = points
             .iter()
             .map(|y| MultilinearPolynomial::eq_xy(y))

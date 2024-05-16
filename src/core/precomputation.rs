@@ -77,7 +77,7 @@ pub struct TablePolynomial<F> {
 #[cfg(test)]
 mod test {
     use super::Table;
-    use crate::utils::ProtocolError;
+    use crate::utils::{transpose, ProtocolError};
     use ff::Field;
     use halo2curves::bn256::Fr;
 

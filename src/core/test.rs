@@ -40,7 +40,7 @@ mod test {
         };
         let mut transcript =
             Keccak256Transcript::<Cursor<Vec<u8>>>::from_proof((), proof.as_slice());
-        ClookupVerifier::verify(&vp, &mut transcript, 21, table_dim, witness_dim, max_degree)?;
+        ClookupVerifier::verify(&vp, &mut transcript, 6, table_dim, witness_dim, max_degree)?;
         Ok(())
     }
 }

@@ -56,7 +56,9 @@ impl<
         move |evals: &Vec<F>| {
             let table_dim = table_poly.num_vars();
             let sigmas = &evals[1..1 + table_dim];
-            (evals[0] - table_poly.evaluate(sigmas)
+            let mut s = evals.iter().skip(1).take(table_dim).cloned().collect_vec();
+            s.reverse();
+            (evals[0] - table_poly.evaluate(s.as_slice())
                 + sigmas
                     .iter()
                     .zip(powers(gamma).skip(1).take(table_dim))
@@ -106,22 +108,12 @@ impl<
         };
         // open polynomials at x
         let witness_poly_x = evals.first().unwrap();
-        // let table_poly_x = evals.get(1).unwrap();
         let sigma_polys_x = evals
             .iter()
-            .skip(2)
+            .skip(1)
             .take(table_poly.num_vars())
             .collect_vec();
 
-        // Pcs::open(
-        //     pp,
-        //     &table_poly,
-        //     &table_poly_comm,
-        //     // TODO: x is not compatible
-        //     &x,
-        //     table_poly_x,
-        //     transcript,
-        // )?;
         let polys = iter::once(&witness_poly).chain(sigma_polys.iter());
         let comms = iter::once(&witness_poly_comm).chain(sigma_polys_comms.iter());
         let points = iter::repeat(x).take(1 + sigma_polys.len()).collect_vec();
