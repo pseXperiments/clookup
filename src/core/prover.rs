@@ -57,8 +57,7 @@ impl<
             let table_dim = table_poly.num_vars();
             let sigmas = &evals[1..1 + table_dim];
             let mut s = evals.iter().skip(1).take(table_dim).cloned().collect_vec();
-            s.reverse();
-            (evals[0] - table_poly.evaluate(s.as_slice())
+            (evals[0] - table_poly.eval_by_coeff(s.as_slice())
                 + sigmas
                     .iter()
                     .zip(powers(gamma).skip(1).take(table_dim))

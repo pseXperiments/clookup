@@ -56,6 +56,7 @@ impl<F: PrimeField + Hash> Table<F> {
                 for c in binary_string.chars() {
                     binary_vec.push(F::from(c.to_digit(10).unwrap() as u64));
                 }
+                binary_vec.reverse();
                 indices.push(binary_vec);
             } else {
                 return Err(ProtocolError::NotInclusion);
