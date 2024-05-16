@@ -32,7 +32,6 @@ impl<
         witness_num_vars: usize,
         max_degree: usize,
     ) -> Result<(), ProtocolError> {
-        // let table_comm = Pcs::read_commitment(vp, transcript)?;
         let witness_comm = Pcs::read_commitment(vp, transcript)?;
         let sigma_comm = Pcs::read_commitments(vp, table_dimension, transcript)?;
 
@@ -43,15 +42,11 @@ impl<
         let (_, evals, x) =
             ClassicSumcheck::verify(&svp, max_degree, F::ZERO, num_polys, transcript)?;
         let witness_poly_x = evals.first().unwrap();
-        // let table_poly_x = evals.get(1).unwrap();
+
         let sigma_polys_x = evals.iter().skip(1).take(table_dimension).collect_vec();
-        // Pcs::verify(vp, &witness_comm, &x.iter().cloned().rev().collect_vec(), witness_poly_x, transcript)?;
-        // sigma_comm.iter().zip(sigma_polys_x).try_for_each(|(comm, sigma_x)| {
-        //     Pcs::verify(vp, &comm, &x.iter().cloned().rev().collect_vec(), sigma_x, transcript)
-        // })?;
-        let x_reversed = x.iter().cloned().rev().collect_vec();
+
         let comms = iter::once(&witness_comm).chain(sigma_comm.iter());
-        let points_vec = iter::repeat(x_reversed).take(1 + table_dimension).collect_vec();
+        let points_vec = iter::repeat(x).take(1 + table_dimension).collect_vec();
         let points = points_vec.as_slice();
         let evals_vec = iter::once(witness_poly_x)
             .chain(sigma_polys_x)

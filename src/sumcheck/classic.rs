@@ -96,6 +96,7 @@ impl<F: PrimeField> SumCheck<F> for ClassicSumcheck {
         for i in 0..virtual_poly.polys().len() {
             assert_eq!(virtual_poly.polys()[i].size(), 1);
         }
+        challenges.reverse();
 
         Ok((challenges, evaluations))
     }
@@ -107,7 +108,7 @@ impl<F: PrimeField> SumCheck<F> for ClassicSumcheck {
         num_polys: usize,
         transcript: &mut impl FieldTranscriptRead<F>,
     ) -> Result<(F, Vec<F>, Vec<F>), ProtocolError> {
-        let (msgs, challenges) = {
+        let (msgs, mut challenges) = {
             let mut msgs = Vec::with_capacity(vp.num_vars);
             let mut challenges = Vec::with_capacity(vp.num_vars);
             for _ in 0..vp.num_vars {
@@ -152,6 +153,7 @@ impl<F: PrimeField> SumCheck<F> for ClassicSumcheck {
                 &challenges[round_index],
             );
         }
+        challenges.reverse();
         Ok((expected_sum, evaluations, challenges))
     }
 }

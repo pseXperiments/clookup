@@ -112,15 +112,9 @@ impl<
             .skip(1)
             .take(table_poly.num_vars())
             .collect_vec();
-        // Pcs::open(pp, &witness_poly, &witness_poly_comm, &x.iter().cloned().rev().collect_vec(), witness_poly_x, transcript)?;
-        // sigma_polys.iter().zip(sigma_polys_x.iter()).zip(sigma_polys_comms.iter()).for_each(|((p, sigma_x), comm)| {
-        //     let _ = Pcs::open(pp, &p, &comm, &x.iter().cloned().rev().collect_vec(), sigma_x, transcript);
-        // });
-        // Ok(())
-        let x_reversed = x.iter().cloned().rev().collect_vec();
         let polys = iter::once(&witness_poly).chain(sigma_polys.iter());
         let comms = iter::once(&witness_poly_comm).chain(sigma_polys_comms.iter());
-        let points = iter::repeat(x_reversed).take(1 + sigma_polys.len()).collect_vec();
+        let points = iter::repeat(x).take(1 + sigma_polys.len()).collect_vec();
         let evals = iter::once(witness_poly_x)
             .chain(sigma_polys_x)
             .enumerate()

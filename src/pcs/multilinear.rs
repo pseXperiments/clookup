@@ -202,11 +202,11 @@ mod additive {
             virtual_poly,
             transcript,
         )?;
-        let challenges_rev = challenges.iter().cloned().rev().collect_vec();
+
         let timer = start_timer(|| "g_prime");
         let eq_xy_evals = points
             .iter()
-            .map(|point| eq_xy_eval(&challenges_rev, point))
+            .map(|point| eq_xy_eval(&challenges, point))
             .collect_vec();
         let g_prime = merged_polys
             .iter()
@@ -225,7 +225,7 @@ mod additive {
                 .collect_vec();
             let bases = evals.iter().map(|eval| comms[eval.poly()]);
             let comm = Pcs::Commitment::msm(&scalars, bases);
-            (comm, g_prime.evaluate(&challenges_rev))
+            (comm, g_prime.evaluate(&challenges))
         } else {
             (Pcs::Commitment::default(), F::ZERO)
         };
@@ -233,7 +233,7 @@ mod additive {
             pp,
             &g_prime,
             &g_prime_comm,
-            &challenges_rev,
+            &challenges,
             &g_prime_eval,
             transcript,
         )
@@ -264,11 +264,9 @@ mod additive {
         let num_polys = points.len() + evals.len();
         let (g_prime_eval, _, challenges) =
             SumCheck::verify(&svp, 2, tilde_gs_sum, num_polys, transcript)?;
-            
-        let challenges_rev = challenges.iter().cloned().rev().collect_vec();
         let eq_xy_evals = points
             .iter()
-            .map(|point| eq_xy_eval(&challenges_rev, point))
+            .map(|point| eq_xy_eval(&challenges, point))
             .collect_vec();
         let g_prime_comm = {
             let scalars = evals
@@ -279,6 +277,6 @@ mod additive {
             let bases = evals.iter().map(|eval| comms[eval.poly()]);
             Pcs::Commitment::msm(&scalars, bases)
         };
-        Pcs::verify(vp, &g_prime_comm, &challenges_rev, &g_prime_eval, transcript)
+        Pcs::verify(vp, &g_prime_comm, &challenges, &g_prime_eval, transcript)
     }
 }
