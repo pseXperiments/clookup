@@ -10,7 +10,7 @@ pub mod parallel;
 pub mod timer;
 pub mod transcript;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ProtocolError {
     InvalidSumcheck(String),
     InvalidPcsParam(String),

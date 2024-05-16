@@ -11,8 +11,9 @@ use crate::{
 };
 use ff::Field;
 use num::Integer;
+use rand::RngCore;
 use serde::{Deserialize, Serialize};
-use std::iter::Sum;
+use std::iter::{self, Sum};
 use std::mem;
 use std::{
     borrow::{Borrow, Cow},
@@ -48,6 +49,16 @@ impl<F: Field> MultilinearPolynomial<F> {
             coeffs,
             num_vars,
         }
+    }
+
+    pub fn rand(num_vars: usize, mut rng: impl RngCore) -> Self {
+        Self::new(
+            iter::repeat_with(|| F::random(&mut rng))
+                .take(1 << num_vars)
+                .collect(),
+            vec![],
+            num_vars,
+        )
     }
 
     fn is_empty(&self) -> bool {

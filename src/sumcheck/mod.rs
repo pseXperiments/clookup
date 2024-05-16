@@ -41,8 +41,14 @@ pub(super) struct EvalTable<F: Field> {
 impl<F: Field> EvalTable<F> {
     pub fn new(num_vars: usize, poly: &MultilinearPolynomial<F>) -> Self {
         if poly.evals().len() == 0 {
-            let table = vec![EvalPair { even: F::ZERO, odd: F::ZERO }; 1 << num_vars - 1];
-            return Self { num_vars, table }
+            let table = vec![
+                EvalPair {
+                    even: F::ZERO,
+                    odd: F::ZERO
+                };
+                1 << num_vars - 1
+            ];
+            return Self { num_vars, table };
         }
         assert_eq!(poly.evals().len(), 1 << num_vars);
         let table = poly
