@@ -1,4 +1,4 @@
-use std::{borrow::Borrow, fmt::Debug};
+use std::fmt::Debug;
 
 use ff::{Field, PrimeField};
 use itertools::Itertools;

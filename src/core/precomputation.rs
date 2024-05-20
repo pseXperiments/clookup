@@ -99,10 +99,10 @@ mod test {
         let indices = table.find_indices(&witness)?;
 
         let res = vec![
-            vec![Fr::ONE, Fr::ZERO, Fr::ZERO],
-            vec![Fr::ZERO, Fr::ONE, Fr::ZERO],
             vec![Fr::ZERO, Fr::ZERO, Fr::ONE],
-            vec![Fr::ONE, Fr::ONE, Fr::ZERO],
+            vec![Fr::ZERO, Fr::ONE, Fr::ZERO],
+            vec![Fr::ONE, Fr::ZERO, Fr::ZERO],
+            vec![Fr::ZERO, Fr::ONE, Fr::ONE],
         ];
         assert_eq!(indices, res);
         Ok(())
