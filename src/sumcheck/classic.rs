@@ -47,7 +47,7 @@ impl<F: PrimeField> SumCheck<F> for ClassicSumcheck {
     fn prove(
         pp: &Self::ProverParam,
         combine_function: &impl Fn(&Vec<F>) -> F,
-        sum: F,
+        _: F,
         mut virtual_poly: VirtualPolynomial<F>,
         transcript: &mut impl FieldTranscriptWrite<F>,
     ) -> Result<(Vec<F>, Vec<F>), ProtocolError> {
@@ -103,7 +103,7 @@ impl<F: PrimeField> SumCheck<F> for ClassicSumcheck {
 
     fn verify(
         vp: &Self::VerifierParam,
-        degree: usize,
+        _: usize,
         sum: F,
         num_polys: usize,
         transcript: &mut impl FieldTranscriptRead<F>,

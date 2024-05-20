@@ -93,6 +93,6 @@ macro_rules! izip_eq {
 pub(crate) use {impl_index, izip_eq};
 
 pub fn random_fe<F: Field>() -> F {
-    let mut rng = rand::thread_rng();
+    let rng = rand::thread_rng();
     F::random(rng)
 }

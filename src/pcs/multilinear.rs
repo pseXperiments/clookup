@@ -94,7 +94,7 @@ fn quotients<F: Field, T>(
 mod additive {
     use ff::Field;
     use itertools::Itertools;
-    use std::{borrow::Cow, ops::Deref, ptr::addr_of};
+    use std::{borrow::Cow, ops::Deref};
 
     use crate::{
         pcs::{Additive, Evaluation, Point, PolynomialCommitmentScheme},
@@ -125,12 +125,9 @@ mod additive {
                 .skip(evals.len() - eq_size)
                 .take(eq_size)
                 .collect_vec();
-            info
-                .iter()
+            info.iter()
                 .zip(evals.iter())
-                .map(|((idx, scalar, _), eval)| {
-                    eval.clone() * (*scalar).clone() * eq_res[*idx]
-                })
+                .map(|((idx, scalar, _), eval)| eval.clone() * (*scalar).clone() * eq_res[*idx])
                 .sum()
         }
     }

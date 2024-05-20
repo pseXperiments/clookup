@@ -1,6 +1,6 @@
 use super::precomputation::Table;
 use crate::{
-    pcs::{Evaluation, Point, PolynomialCommitmentScheme},
+    pcs::{Evaluation, PolynomialCommitmentScheme},
     poly::multilinear::MultilinearPolynomial,
     sumcheck::{
         classic::{ClassicSumcheck, ClassicSumcheckProverParam},
@@ -56,7 +56,7 @@ impl<
         move |evals: &Vec<F>| {
             let table_dim = table_poly.num_vars();
             let sigmas = &evals[1..1 + table_dim];
-            let mut s = evals.iter().skip(1).take(table_dim).cloned().collect_vec();
+            let s = evals.iter().skip(1).take(table_dim).cloned().collect_vec();
             (evals[0] - table_poly.eval_by_coeff(s.as_slice())
                 + sigmas
                     .iter()

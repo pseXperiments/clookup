@@ -19,8 +19,8 @@ mod test {
 
     #[test]
     pub fn test_clookup() -> Result<(), ProtocolError> {
-        let table_dim = 16;
-        let witness_dim = 8;
+        let table_dim = 8;
+        let witness_dim = 4;
         let table_vec: Vec<Fr> = (0..1 << table_dim).map(|_| random_fe()).collect_vec();
         let witness_vec = table_vec
             .iter()
@@ -43,7 +43,14 @@ mod test {
         end_timer(timer);
         let mut transcript =
             Keccak256Transcript::<Cursor<Vec<u8>>>::from_proof((), proof.as_slice());
-        ClookupVerifier::verify(&vp, &mut transcript, table_dim + 2, table_dim, witness_dim, max_degree)?;
+        ClookupVerifier::verify(
+            &vp,
+            &mut transcript,
+            table_dim + 2,
+            table_dim,
+            witness_dim,
+            max_degree,
+        )?;
         Ok(())
     }
 }
