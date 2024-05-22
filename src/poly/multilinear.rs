@@ -13,6 +13,8 @@ use ff::Field;
 use itertools::Itertools;
 use num::Integer;
 use rand::RngCore;
+use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
+use rayon::prelude::IntoParallelIterator;
 use serde::{Deserialize, Serialize};
 use std::iter::{self, Sum};
 use std::mem;
@@ -102,15 +104,22 @@ impl<F: Field> MultilinearPolynomial<F> {
     // TODO : optimize
     pub fn eval_by_coeff(&self, point: &[F]) -> F {
         assert_eq!(point.len(), self.num_vars);
-        self.coeffs.iter().enumerate().map(|(i, coeff)| {
-            let indices = (0..self.num_vars).map(|j| (i >> j) & 1).collect_vec();
-            let mut result = F::ONE;
-            for (index, point) in indices.iter().zip(point.iter()) {
-                result *= if *index == 1 { *point } else { F::ONE };
-            }
-            result * coeff
-        })
-        .sum()
+        self.coeffs
+            .par_iter()
+            .enumerate()
+            .map(|(i, coeff)| {
+                if *coeff == F::ZERO {
+                    F::ZERO
+                } else {
+                    let indices = (0..self.num_vars).map(|j| (i >> j) & 1).collect_vec();
+                    let mut result = F::ONE;
+                    for (index, point) in indices.iter().zip(point.iter()) {
+                        result *= if *index == 1 { *point } else { F::ONE };
+                    }
+                    result * coeff
+                }
+            })
+            .sum()
     }
 
     pub fn evaluate(&self, point: &[F]) -> F {
