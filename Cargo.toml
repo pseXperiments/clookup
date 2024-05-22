@@ -24,3 +24,13 @@ ark-std = { version = "^0.4.0", default-features = false, optional = true }
 
 # concurrency
 rayon = "1.8"
+
+[dev-dependencies]
+criterion = { version = "0.4", features = ["html_reports"] }
+
+[[bench]]
+name = "full"
+harness = false
+
+[profile.bench]
+debug = true
