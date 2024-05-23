@@ -2,8 +2,17 @@
 Lookup argument with function composition
 
 ## Benchmark
-To run benchmark, run
+1. To run benchmark, before running it install `flamegraph`.
 ```sh
 cargo install flamegraph
 ```
-In Linux, install `perf`.
+
+2. In Linux, install `perf`. \
+In Mac OS, it uses built-in dtrace.
+
+2. Run benchmark
+```sh
+make bench
+```
+
+3. The result of benchmark will be stored as `flamegraph.svg` in the root.
