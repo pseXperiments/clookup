@@ -10,9 +10,9 @@ cargo install flamegraph
 2. In Linux, install `perf`. \
 In Mac OS, it uses built-in dtrace.
 
-2. Run benchmark
+3. Run benchmark
 ```sh
 make bench
 ```
 
-3. The result of benchmark will be stored as `flamegraph.svg` in the root.
+4. The result of benchmark will be stored as `flamegraph.svg` in the root.
