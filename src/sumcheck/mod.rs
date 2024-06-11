@@ -127,6 +127,12 @@ pub trait SumCheck<F: Field>: Clone + Debug {
     type ProverParam: Clone + Debug;
     type VerifierParam: Clone + Debug;
 
+    fn generate_pp(num_vars: usize, max_degree: usize) -> Result<Self::ProverParam, ProtocolError>;
+    fn generate_vp(
+        num_vars: usize,
+        max_degree: usize,
+    ) -> Result<Self::VerifierParam, ProtocolError>;
+
     /// Returns the challenges and the evaluations of the polynomials at the challenges.
     fn prove(
         pp: &Self::ProverParam,

@@ -6,10 +6,7 @@ use itertools::Itertools;
 use crate::{
     pcs::{Evaluation, PolynomialCommitmentScheme},
     poly::multilinear::MultilinearPolynomial,
-    sumcheck::{
-        classic::{ClassicSumcheck, ClassicSumcheckVerifierParam},
-        SumCheck,
-    },
+    sumcheck::SumCheck,
     utils::{transcript::TranscriptRead, ProtocolError},
 };
 
@@ -17,12 +14,14 @@ use crate::{
 pub struct Verifier<
     F: PrimeField + Hash,
     Pcs: PolynomialCommitmentScheme<F, Polynomial = MultilinearPolynomial<F>>,
->(PhantomData<F>, PhantomData<Pcs>);
+    Scs: SumCheck<F>,
+>(PhantomData<F>, PhantomData<Pcs>, PhantomData<Scs>);
 
 impl<
         F: PrimeField + Hash,
         Pcs: PolynomialCommitmentScheme<F, Polynomial = MultilinearPolynomial<F>>,
-    > Verifier<F, Pcs>
+        Scs: SumCheck<F>,
+    > Verifier<F, Pcs, Scs>
 {
     pub fn verify(
         vp: &Pcs::VerifierParam,
@@ -38,9 +37,8 @@ impl<
         let gamma = transcript.squeeze_challenge();
         let ys = transcript.squeeze_challenges(witness_num_vars);
 
-        let svp = ClassicSumcheckVerifierParam::new(witness_num_vars, max_degree);
-        let (_, evals, x) =
-            ClassicSumcheck::verify(&svp, max_degree, F::ZERO, num_polys, transcript)?;
+        let svp = Scs::generate_vp(witness_num_vars, max_degree)?;
+        let (_, evals, x) = Scs::verify(&svp, max_degree, F::ZERO, num_polys, transcript)?;
         let witness_poly_x = evals.first().unwrap();
 
         let sigma_polys_x = evals.iter().skip(1).take(table_dimension).collect_vec();
