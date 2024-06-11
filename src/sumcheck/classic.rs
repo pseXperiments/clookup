@@ -44,6 +44,17 @@ impl<F: PrimeField> SumCheck<F> for ClassicSumcheck {
     type ProverParam = ClassicSumcheckProverParam;
     type VerifierParam = ClassicSumcheckVerifierParam;
 
+    fn generate_pp(num_vars: usize, max_degree: usize) -> Result<Self::ProverParam, ProtocolError> {
+        Ok(ClassicSumcheckProverParam::new(num_vars, max_degree))
+    }
+
+    fn generate_vp(
+        num_vars: usize,
+        max_degree: usize,
+    ) -> Result<Self::VerifierParam, ProtocolError> {
+        Ok(ClassicSumcheckVerifierParam::new(num_vars, max_degree))
+    }
+
     fn prove(
         pp: &Self::ProverParam,
         combine_function: &impl Fn(&Vec<F>) -> F,

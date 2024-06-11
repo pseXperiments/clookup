@@ -2,10 +2,7 @@ use super::precomputation::Table;
 use crate::{
     pcs::{Evaluation, PolynomialCommitmentScheme},
     poly::multilinear::MultilinearPolynomial,
-    sumcheck::{
-        classic::{ClassicSumcheck, ClassicSumcheckProverParam},
-        SumCheck, VirtualPolynomial,
-    },
+    sumcheck::{SumCheck, VirtualPolynomial},
     utils::{
         arithmetic::powers, end_timer, start_timer, transcript::TranscriptWrite, transpose,
         ProtocolError,
@@ -20,12 +17,14 @@ use std::{cmp::max, hash::Hash, iter, marker::PhantomData};
 pub struct Prover<
     F: PrimeField + Hash,
     Pcs: PolynomialCommitmentScheme<F, Polynomial = MultilinearPolynomial<F>>,
->(PhantomData<F>, PhantomData<Pcs>);
+    Scs: SumCheck<F>,
+>(PhantomData<F>, PhantomData<Pcs>, PhantomData<Scs>);
 
 impl<
         F: PrimeField + Hash,
         Pcs: PolynomialCommitmentScheme<F, Polynomial = MultilinearPolynomial<F>>,
-    > Prover<F, Pcs>
+        Scs: SumCheck<F>,
+    > Prover<F, Pcs, Scs>
 {
     pub fn setup(
         table: &Table<F>,
@@ -101,8 +100,8 @@ impl<
                     .collect_vec()
                     .as_ref(),
             );
-            let pp = ClassicSumcheckProverParam::new(num_vars, max_degree);
-            ClassicSumcheck::prove(&pp, &h_function, F::ZERO, virtual_poly, transcript)?
+            let pp = Scs::generate_pp(num_vars, max_degree)?;
+            Scs::prove(&pp, &h_function, F::ZERO, virtual_poly, transcript)?
         };
         // open polynomials at x
         let witness_poly_x = evals.first().unwrap();

@@ -14,7 +14,6 @@ use itertools::Itertools;
 use num::Integer;
 use rand::RngCore;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
-use rayon::prelude::IntoParallelIterator;
 use serde::{Deserialize, Serialize};
 use std::iter::{self, Sum};
 use std::mem;
