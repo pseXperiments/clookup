@@ -15,3 +15,7 @@ impl SumcheckSystem {
 
     fn bench(&self, k: usize) {}
 }
+
+fn parse_args() {
+    
+}
