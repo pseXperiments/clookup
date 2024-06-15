@@ -11,6 +11,7 @@ use crate::{
 use ff::PrimeField;
 use itertools::Itertools;
 use rand::RngCore;
+use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use std::{cmp::max, hash::Hash, iter, marker::PhantomData};
 
 #[derive(Clone, Debug)]
@@ -42,7 +43,7 @@ impl<
     ) -> Result<Vec<MultilinearPolynomial<F>>, ProtocolError> {
         let indices = table.find_indices(&witness)?;
         let sigma: Vec<MultilinearPolynomial<F>> = transpose(indices)
-            .iter()
+            .par_iter()
             .map(|idx| MultilinearPolynomial::eval_to_coeff(idx, idx.len().ilog2() as usize))
             .collect();
         Ok(sigma)
@@ -55,7 +56,7 @@ impl<
         move |evals: &Vec<F>| {
             let table_dim = table_poly.num_vars();
             let sigmas = &evals[1..1 + table_dim];
-            let s = evals.iter().skip(1).take(table_dim).cloned().collect_vec();
+            let s: Vec<F> = evals.par_iter().skip(1).take(table_dim).cloned().collect();
             (evals[0] - table_poly.eval_by_coeff(s.as_slice())
                 + sigmas
                     .iter()
