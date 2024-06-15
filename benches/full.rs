@@ -1,11 +1,14 @@
 use std::{cmp::max, io::Cursor};
 
 use clookup::{
-    core::{precomputation::Table, prover::Prover, verifier::Verifier}, pcs::{multilinear::kzg::MultilinearKzg, PolynomialCommitmentScheme}, sumcheck::{classic::ClassicSumcheck, parallel::ParallelSumcheck}, utils::{
+    core::{precomputation::Table, prover::Prover, verifier::Verifier},
+    pcs::{multilinear::kzg::MultilinearKzg, PolynomialCommitmentScheme},
+    sumcheck::{classic::ClassicSumcheck, parallel::ParallelSumcheck},
+    utils::{
         end_timer, random_fe, start_timer,
         transcript::{InMemoryTranscript, Keccak256Transcript},
         ProtocolError,
-    }
+    },
 };
 use criterion::{criterion_group, criterion_main, Criterion};
 use halo2curves::bn256::{Bn256, Fr};

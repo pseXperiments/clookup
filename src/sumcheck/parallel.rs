@@ -1,5 +1,5 @@
 use ff::PrimeField;
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterator};
 
 use crate::utils::{
     arithmetic::{barycentric_interpolate, barycentric_weights},
@@ -62,20 +62,23 @@ impl<F: PrimeField> SumCheck<F> for ParallelSumcheck {
         let mut evaluations = vec![];
         for round_index in 0..pp.num_vars {
             for k in 0..(r_degree + 1) {
-                for i in 0..virtual_poly.polys()[0].size() {
-                    let evaluations_at_k = virtual_poly
-                        .polys()
-                        .par_iter()
-                        .map(|poly| {
-                            let o = poly.table()[i].odd;
-                            let e = poly.table()[i].even;
-                            e + F::from(k as u64) * (o - e)
-                        })
-                        .collect::<Vec<F>>();
-
-                    // apply combine function
-                    r_polys[round_index][k] += combine_function(&evaluations_at_k);
-                }
+                let eval_at_k_collection = (0..virtual_poly.polys()[0].size())
+                    .into_par_iter()
+                    .map(|i| {
+                        virtual_poly
+                            .polys()
+                            .par_iter()
+                            .map(|poly| {
+                                let o = poly.table()[i].odd;
+                                let e = poly.table()[i].even;
+                                e + F::from(k as u64) * (o - e)
+                            })
+                            .collect::<Vec<F>>()
+                    })
+                    .collect::<Vec<Vec<F>>>();
+                eval_at_k_collection
+                    .iter()
+                    .for_each(|e| r_polys[round_index][k] += combine_function(e));
             }
             // append the round polynomial (i.e. prover message) to the transcript
             transcript.write_field_elements(&r_polys[round_index])?;
