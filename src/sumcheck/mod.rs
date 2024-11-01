@@ -13,6 +13,7 @@ use crate::{
 };
 
 pub mod classic;
+pub mod cuda;
 pub mod parallel;
 
 pub fn eq_xy_eval<F: PrimeField>(x: &[F], y: &[F]) -> F {
