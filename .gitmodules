@@ -1,0 +1,4 @@
+[submodule "cuda-sumcheck"]
+	path = cuda-sumcheck
+	url = https://github.com/pseXperiments/cuda-sumcheck
+	branch = bench/clookup

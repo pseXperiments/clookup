@@ -85,6 +85,17 @@ impl<F: Field> EvalTable<F> {
         self.num_vars -= 1;
         self.table.truncate(self.table.len() / 2);
     }
+
+    pub fn to_evaluations(&self) -> Vec<F> {
+        let mut evals = vec![];
+        let mut odd_evals = vec![];
+        for pair in &self.table {
+            evals.push(pair.even);
+            odd_evals.push(pair.odd);
+        }
+        evals.append(&mut odd_evals);
+        evals
+    }
 }
 
 pub struct VirtualPolynomial<F: Field> {
