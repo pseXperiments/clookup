@@ -4,6 +4,7 @@ mod test {
     use crate::pcs::PolynomialCommitmentScheme;
     use crate::poly::multilinear::MultilinearPolynomial;
     use crate::sumcheck::classic::ClassicSumcheck;
+    use crate::sumcheck::cuda::CudaSumcheck;
     use crate::utils::{end_timer, start_timer};
     use crate::utils::{
         random_fe,
@@ -15,8 +16,8 @@ mod test {
     use std::cmp::max;
     use std::io::Cursor;
 
-    type ClookupProver = Prover<Fr, MultilinearKzg<Bn256>, ClassicSumcheck>;
-    type ClookupVerifier = Verifier<Fr, MultilinearKzg<Bn256>, ClassicSumcheck>;
+    type ClookupProver = Prover<Fr, MultilinearKzg<Bn256>, CudaSumcheck>;
+    type ClookupVerifier = Verifier<Fr, MultilinearKzg<Bn256>, CudaSumcheck>;
 
     #[test]
     pub fn test_clookup() -> Result<(), ProtocolError> {
