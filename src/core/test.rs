@@ -1,4 +1,5 @@
 mod test {
+    use crate::core::cuda_prover::CudaProver;
     use crate::core::{precomputation::Table, prover::Prover, verifier::Verifier};
     use crate::pcs::multilinear::kzg::MultilinearKzg;
     use crate::pcs::PolynomialCommitmentScheme;
@@ -16,21 +17,22 @@ mod test {
     use std::cmp::max;
     use std::io::Cursor;
 
-    type ClookupProver = Prover<Fr, MultilinearKzg<Bn256>, CudaSumcheck>;
+    type ClookupProver = CudaProver<Fr, MultilinearKzg<Bn256>>;
     type ClookupVerifier = Verifier<Fr, MultilinearKzg<Bn256>, CudaSumcheck>;
 
     #[test]
     pub fn test_clookup() -> Result<(), ProtocolError> {
         let table_dim = 8;
         let witness_dim = 4;
-        let table_vec: Vec<Fr> = (0..1 << table_dim).map(|_| random_fe()).collect_vec();
+        // Range table 0..1 << table_dim - 1
+        let table_vec: Vec<Fr> = (0..1 << table_dim).map(|i| Fr::from(i)).collect_vec();
         let witness_vec = table_vec
             .iter()
             .take(1 << witness_dim)
             .cloned()
             .collect_vec();
         let table: Table<Fr> = table_vec.try_into()?;
-        let max_degree = 1 + max(2, table_dim);
+        let max_degree = 3;
         let (pp, vp) = {
             let rng = rand::thread_rng();
             let param = ClookupProver::setup(&table, &witness_vec, rng)?;

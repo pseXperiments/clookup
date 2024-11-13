@@ -15,7 +15,7 @@ pub enum ProtocolError {
     InvalidSumcheck(String),
     InvalidPcsParam(String),
     InvalidPcsOpen(String),
-    CudaLibraryError,
+    CudaLibraryError(String),
     SizeError,
     NotInclusion,
     Transcript(std::io::ErrorKind, String),

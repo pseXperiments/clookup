@@ -64,7 +64,7 @@ impl<F: PrimeField + FromFieldBinding<F> + ToFieldBinding<F>> SumCheck<F> for Cu
     ) -> Result<(Vec<F>, Vec<F>), ProtocolError> {
         let mut challenges = vec![];
         let mut gpu_api_wrapper =
-            GPUApiWrapper::<F>::setup().map_err(|_| ProtocolError::CudaLibraryError)?;
+            GPUApiWrapper::<F>::setup().map_err(|e| ProtocolError::CudaLibraryError(e.to_string()))?;
         gpu_api_wrapper
             .gpu
             .load_ptx(
@@ -72,7 +72,7 @@ impl<F: PrimeField + FromFieldBinding<F> + ToFieldBinding<F>> SumCheck<F> for Cu
                 "multilinear",
                 &["convert_to_montgomery_form"],
             )
-            .map_err(|_| ProtocolError::CudaLibraryError)?;
+            .map_err(|e| ProtocolError::CudaLibraryError(e.to_string()))?;
 
         gpu_api_wrapper
             .gpu
@@ -86,8 +86,7 @@ impl<F: PrimeField + FromFieldBinding<F> + ToFieldBinding<F>> SumCheck<F> for Cu
                     "sum",
                 ],
             )
-            .map_err(|_| ProtocolError::CudaLibraryError)?;
-        let mut cuda_transcript = Keccak256Transcript::<F>::new();
+            .map_err(|e| ProtocolError::CudaLibraryError(e.to_string()))?;
         let polys: Vec<Vec<F>> = virtual_poly
             .polys()
             .iter()
@@ -96,7 +95,7 @@ impl<F: PrimeField + FromFieldBinding<F> + ToFieldBinding<F>> SumCheck<F> for Cu
 
         let mut gpu_polys = gpu_api_wrapper
             .copy_to_device(&polys.concat())
-            .map_err(|_| ProtocolError::CudaLibraryError)?;
+            .map_err(|e| ProtocolError::CudaLibraryError(e.to_string()))?;
         let device_ks = (0..pp.max_degree + 1)
             .map(|k| {
                 gpu_api_wrapper
@@ -104,21 +103,27 @@ impl<F: PrimeField + FromFieldBinding<F> + ToFieldBinding<F>> SumCheck<F> for Cu
                     .htod_copy(vec![F::to_montgomery_form(F::from(k as u64))])
             })
             .collect::<Result<Vec<_>, _>>()
-            .map_err(|_| ProtocolError::CudaLibraryError)?;
+            .map_err(|e| ProtocolError::CudaLibraryError(e.to_string()))?;
 
         let mut buf = gpu_api_wrapper
             .malloc_on_device(polys.len() << (pp.num_vars - 1))
-            .map_err(|_| ProtocolError::CudaLibraryError)?;
+            .map_err(|e| ProtocolError::CudaLibraryError(e.to_string()))?;
         let buf_view = RefCell::new(buf.slice_mut(..));
 
         let mut challenges_cuda = gpu_api_wrapper
             .malloc_on_device(1)
-            .map_err(|_| ProtocolError::CudaLibraryError)?;
+            .map_err(|e| ProtocolError::CudaLibraryError(e.to_string()))?;
 
         let mut round_evals = gpu_api_wrapper
             .malloc_on_device(pp.max_degree + 1)
-            .map_err(|e| ProtocolError::CudaLibraryError)?;
+            .map_err(|e| ProtocolError::CudaLibraryError(e.to_string()))?;
         let round_evals_view = RefCell::new(round_evals.slice_mut(..));
+
+        // This is shit code
+        let gamma = gpu_api_wrapper
+            .gpu
+            .htod_copy(vec![F::to_montgomery_form(combine_function(&vec![]))])
+            .map_err(|e| ProtocolError::CudaLibraryError(e.to_string()))?;
 
         gpu_api_wrapper
             .prove_sumcheck(
@@ -135,13 +140,14 @@ impl<F: PrimeField + FromFieldBinding<F> + ToFieldBinding<F>> SumCheck<F> for Cu
                 &mut challenges_cuda,
                 round_evals_view,
                 &mut cuda_transcript,
+                &gamma.slice(..),
             )
-            .map_err(|_| ProtocolError::CudaLibraryError)?;
+            .map_err(|e| ProtocolError::CudaLibraryError(String::from("library error")))?;
 
         gpu_api_wrapper
             .gpu
             .synchronize()
-            .map_err(|_| ProtocolError::CudaLibraryError)?;
+            .map_err(|e| ProtocolError::CudaLibraryError(e.to_string()))?;
 
         let evaluations = (0..polys.len())
             .map(|i| {
@@ -151,10 +157,10 @@ impl<F: PrimeField + FromFieldBinding<F> + ToFieldBinding<F>> SumCheck<F> for Cu
                         true,
                     )
                     .map(|res| res.first().unwrap().clone())
-                    .map_err(|_| ProtocolError::CudaLibraryError)
+                    .map_err(|e| ProtocolError::CudaLibraryError(e.to_string()))
             })
             .collect::<Result<Vec<F>, _>>()
-            .map_err(|_| ProtocolError::CudaLibraryError)?;
+            .map_err(|e| ProtocolError::CudaLibraryError(String::from("")))?;
         let mut cuda_transcript = cuda_sumcheck::transcript::Transcript::<Keccak256, F>::from_proof(
             cuda_transcript.into_proof().as_slice(),
         );
@@ -169,6 +175,8 @@ impl<F: PrimeField + FromFieldBinding<F> + ToFieldBinding<F>> SumCheck<F> for Cu
         }
         transcript.write_field_elements(evaluations.iter())?;
         challenges.reverse();
+
+        println!("{:?}", challenges);
 
         Ok((challenges, evaluations))
     }
@@ -189,6 +197,8 @@ impl<F: PrimeField + FromFieldBinding<F> + ToFieldBinding<F>> SumCheck<F> for Cu
             }
             (msgs, challenges)
         };
+
+        
 
         let evaluations = transcript.read_field_elements(num_polys)?;
         let mut expected_sum = sum.clone();
@@ -212,6 +222,7 @@ impl<F: PrimeField + FromFieldBinding<F> + ToFieldBinding<F>> SumCheck<F> for Cu
 
             // Check r_{i}(α_i) == r_{i+1}(0) + r_{i+1}(1)
             if computed_sum != expected_sum {
+                println!("round : {:?}", round_index);
                 return Err(ProtocolError::InvalidSumcheck(format!(
                     "computed sum != expected sum"
                 )));
