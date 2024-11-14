@@ -53,6 +53,7 @@ impl<
             .map(|(poly, value)| Evaluation::new(poly, 0, *value))
             .collect_vec();
         let evals = evals_vec.as_slice();
+
         Pcs::batch_verify(vp, comms, points, evals, transcript)?;
         Ok(())
     }

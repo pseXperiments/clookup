@@ -68,7 +68,7 @@ impl<
             MultilinearPolynomial::new(witness.clone(), vec![], witness.len().ilog2() as usize);
         let table_poly = table.polynomial();
         let num_vars = witness_poly.num_vars();
-        let max_degree = 2;
+        let max_degree = 3;
         // get sigma_polys
         let timer = start_timer(|| "sigma_polys");
         let sigma_polys = Self::sigma_polys(table, witness)?;

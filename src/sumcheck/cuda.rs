@@ -162,9 +162,8 @@ impl<F: PrimeField + FromFieldBinding<F> + ToFieldBinding<F>> SumCheck<F> for Cu
             .collect::<Result<Vec<F>, _>>()
             .map_err(|e| ProtocolError::CudaLibraryError(String::from("")))?;
 
+        transcript.write_field_elements(evaluations.iter()).map_err(|_| ProtocolError::Transcript)?;
         challenges.reverse();
-
-        println!("{:?}", challenges);
 
         Ok((challenges, evaluations))
     }
@@ -185,8 +184,6 @@ impl<F: PrimeField + FromFieldBinding<F> + ToFieldBinding<F>> SumCheck<F> for Cu
             }
             (msgs, challenges)
         };
-
-        
 
         let evaluations = transcript.read_field_elements(num_polys).map_err(|_| ProtocolError::Transcript)?;
         let mut expected_sum = sum.clone();
