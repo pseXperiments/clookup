@@ -1,6 +1,6 @@
 mod test {
     use crate::core::cuda_prover::CudaProver;
-    use crate::core::{precomputation::Table, prover::Prover, verifier::Verifier};
+    use crate::core::{precomputation::Table, verifier::Verifier};
     use crate::pcs::multilinear::kzg::MultilinearKzg;
     use crate::pcs::PolynomialCommitmentScheme;
     use crate::poly::multilinear::MultilinearPolynomial;
@@ -9,13 +9,13 @@ mod test {
     use crate::utils::{end_timer, start_timer};
     use crate::utils::{
         random_fe,
-        transcript::{InMemoryTranscript, Keccak256Transcript},
         ProtocolError,
     };
     use halo2curves::bn256::{Bn256, Fr};
     use itertools::Itertools;
     use std::cmp::max;
     use std::io::Cursor;
+    use transcript_utils::transcript::{InMemoryTranscript, Keccak256Transcript};
 
     type ClookupProver = CudaProver<Fr, MultilinearKzg<Bn256>>;
     type ClookupVerifier = Verifier<Fr, MultilinearKzg<Bn256>, CudaSumcheck>;

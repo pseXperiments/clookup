@@ -2,12 +2,12 @@ use crate::{
     poly::Polynomial,
     utils::{
         arithmetic::Field,
-        transcript::{TranscriptRead, TranscriptWrite},
         DeserializeOwned, ProtocolError, Serialize,
     },
 };
 use rand::RngCore;
 use std::fmt::Debug;
+use transcript_utils::transcript::{TranscriptRead, TranscriptWrite};
 
 pub mod multilinear;
 
@@ -53,7 +53,7 @@ pub trait PolynomialCommitmentScheme<F: Field>: Clone + Debug {
         transcript: &mut impl TranscriptWrite<Self::CommitmentChunk, F>,
     ) -> Result<Self::Commitment, ProtocolError> {
         let comm = Self::commit(pp, poly)?;
-        transcript.write_commitments(comm.as_ref())?;
+        transcript.write_commitments(comm.as_ref()).map_err(|_| ProtocolError::Transcript)?;
         Ok(comm)
     }
 
@@ -74,7 +74,7 @@ pub trait PolynomialCommitmentScheme<F: Field>: Clone + Debug {
     {
         let comms = Self::batch_commit(pp, polys)?;
         for comm in comms.iter() {
-            transcript.write_commitments(comm.as_ref())?;
+            transcript.write_commitments(comm.as_ref()).map_err(|_| ProtocolError::Transcript)?;
         }
         Ok(comms)
     }

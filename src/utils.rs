@@ -8,7 +8,7 @@ pub mod arithmetic;
 pub mod hash;
 pub mod parallel;
 pub mod timer;
-pub mod transcript;
+// pub mod transcript;
 
 #[derive(Debug, PartialEq)]
 pub enum ProtocolError {
@@ -18,7 +18,7 @@ pub enum ProtocolError {
     CudaLibraryError(String),
     SizeError,
     NotInclusion,
-    Transcript(std::io::ErrorKind, String),
+    Transcript,
 }
 
 pub fn transpose<T>(v: Vec<Vec<T>>) -> Vec<Vec<T>> {

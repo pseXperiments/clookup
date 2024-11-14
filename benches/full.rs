@@ -6,13 +6,13 @@ use clookup::{
     sumcheck::{classic::ClassicSumcheck, parallel::ParallelSumcheck},
     utils::{
         end_timer, random_fe, start_timer,
-        transcript::{InMemoryTranscript, Keccak256Transcript},
         ProtocolError,
     },
 };
 use criterion::{criterion_group, criterion_main, Criterion};
 use halo2curves::bn256::{Bn256, Fr};
 use itertools::Itertools;
+use transcript_utils::transcript::{InMemoryTranscript, Keccak256Transcript};
 
 type ClookupProverClassic = Prover<Fr, MultilinearKzg<Bn256>, ClassicSumcheck>;
 type ClookupVerifierClassic = Verifier<Fr, MultilinearKzg<Bn256>, ClassicSumcheck>;

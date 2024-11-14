@@ -4,10 +4,11 @@ use crate::{
     poly::multilinear::MultilinearPolynomial,
     sumcheck::{cuda::CudaSumcheck, SumCheck, VirtualPolynomial},
     utils::{
-        arithmetic::powers, end_timer, start_timer, transcript::TranscriptWrite, transpose,
+        arithmetic::powers, end_timer, start_timer, transpose,
         ProtocolError,
     },
 };
+use transcript_utils::transcript::TranscriptWrite;
 use cuda_sumcheck::fieldbinding::{FromFieldBinding, ToFieldBinding};
 use ff::PrimeField;
 use itertools::Itertools;

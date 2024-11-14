@@ -3,14 +3,13 @@ use std::cell::RefCell;
 use super::{SumCheck, VirtualPolynomial};
 use crate::utils::{
     arithmetic::{barycentric_interpolate, barycentric_weights},
-    transcript::{FieldTranscriptRead, FieldTranscriptWrite},
     ProtocolError,
 };
 use cuda_sumcheck::{
     fieldbinding::{FromFieldBinding, ToFieldBinding},
-    transcript::Keccak256Transcript,
     GPUApiWrapper,
 };
+use transcript_utils::transcript::{FieldTranscriptRead, FieldTranscriptWrite};
 use cudarc::nvrtc::Ptx;
 use ff::PrimeField;
 use itertools::Itertools;
@@ -139,8 +138,9 @@ impl<F: PrimeField + FromFieldBinding<F> + ToFieldBinding<F>> SumCheck<F> for Cu
                 buf_view,
                 &mut challenges_cuda,
                 round_evals_view,
-                &mut cuda_transcript,
+                transcript,
                 &gamma.slice(..),
+                &mut challenges,
             )
             .map_err(|e| ProtocolError::CudaLibraryError(String::from("library error")))?;
 
@@ -161,19 +161,7 @@ impl<F: PrimeField + FromFieldBinding<F> + ToFieldBinding<F>> SumCheck<F> for Cu
             })
             .collect::<Result<Vec<F>, _>>()
             .map_err(|e| ProtocolError::CudaLibraryError(String::from("")))?;
-        let mut cuda_transcript = cuda_sumcheck::transcript::Transcript::<Keccak256, F>::from_proof(
-            cuda_transcript.into_proof().as_slice(),
-        );
-        for _ in 0..pp.num_vars {
-            transcript.write_field_elements(
-                cuda_transcript
-                    .read_field_elements(pp.max_degree + 1)
-                    .unwrap()
-                    .iter(),
-            )?;
-            challenges.push(transcript.squeeze_challenge());
-        }
-        transcript.write_field_elements(evaluations.iter())?;
+
         challenges.reverse();
 
         println!("{:?}", challenges);
@@ -192,7 +180,7 @@ impl<F: PrimeField + FromFieldBinding<F> + ToFieldBinding<F>> SumCheck<F> for Cu
             let mut msgs = Vec::with_capacity(vp.num_vars);
             let mut challenges = Vec::with_capacity(vp.num_vars);
             for _ in 0..vp.num_vars {
-                msgs.push(transcript.read_field_elements(vp.max_degree + 1)?);
+                msgs.push(transcript.read_field_elements(vp.max_degree + 1).map_err(|_| ProtocolError::Transcript)?);
                 challenges.push(transcript.squeeze_challenge());
             }
             (msgs, challenges)
@@ -200,7 +188,7 @@ impl<F: PrimeField + FromFieldBinding<F> + ToFieldBinding<F>> SumCheck<F> for Cu
 
         
 
-        let evaluations = transcript.read_field_elements(num_polys)?;
+        let evaluations = transcript.read_field_elements(num_polys).map_err(|_| ProtocolError::Transcript)?;
         let mut expected_sum = sum.clone();
         let points_vec: Vec<F> = (0..vp.max_degree + 1)
             .map(|i| F::from_u128(i as u128))

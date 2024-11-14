@@ -11,12 +11,13 @@ use crate::{
         },
         chain, izip,
         parallel::parallelize,
-        transcript::{TranscriptRead, TranscriptWrite},
+        
         Deserialize, DeserializeOwned, Itertools, ProtocolError, Serialize,
     },
 };
 use rand::RngCore;
 use std::{iter, marker::PhantomData, ops::Neg, slice};
+use transcript_utils::transcript::{TranscriptRead, TranscriptWrite};
 
 #[derive(Clone, Debug)]
 pub struct MultilinearKzg<M: MultiMillerLoop>(PhantomData<M>);
@@ -291,7 +292,7 @@ where
             assert_eq!(&remainder, eval);
         }
 
-        transcript.write_commitments(&quotient_comms)?;
+        transcript.write_commitments(&quotient_comms).map_err(|_| ProtocolError::Transcript)?;
 
         Ok(())
     }
@@ -314,7 +315,7 @@ where
         num_polys: usize,
         transcript: &mut impl TranscriptRead<Self::CommitmentChunk, M::Scalar>,
     ) -> Result<Vec<Self::Commitment>, ProtocolError> {
-        transcript.read_commitments(num_polys).map(|comms| {
+        transcript.read_commitments(num_polys).map_err(|_| ProtocolError::Transcript).map(|comms| {
             comms
                 .into_iter()
                 .map(MultilinearKzgCommitment)
@@ -331,7 +332,7 @@ where
     ) -> Result<(), ProtocolError> {
         validate_input("verify", vp.num_vars(), [], [point])?;
 
-        let quotients = transcript.read_commitments(point.len())?;
+        let quotients = transcript.read_commitments(point.len()).map_err(|_| ProtocolError::Transcript)?;
 
         let window_size = window_size(point.len());
         let window_table = window_table(window_size, vp.g2);

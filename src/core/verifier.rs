@@ -7,8 +7,9 @@ use crate::{
     pcs::{Evaluation, PolynomialCommitmentScheme},
     poly::multilinear::MultilinearPolynomial,
     sumcheck::SumCheck,
-    utils::{transcript::TranscriptRead, ProtocolError},
+    utils::ProtocolError,
 };
+use transcript_utils::transcript::TranscriptRead;
 
 #[derive(Clone, Debug)]
 pub struct Verifier<

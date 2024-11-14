@@ -106,11 +106,11 @@ mod additive {
         utils::{
             arithmetic::{inner_product, PrimeField},
             end_timer, start_timer,
-            transcript::{TranscriptRead, TranscriptWrite},
+            
             ProtocolError,
         },
     };
-
+    use transcript_utils::transcript::{TranscriptRead, TranscriptWrite};
     use super::validate_input;
 
     type SumCheck = ClassicSumcheck;

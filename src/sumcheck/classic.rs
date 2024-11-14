@@ -1,11 +1,11 @@
 use super::{SumCheck, VirtualPolynomial};
-use crate::utils::transcript::{FieldTranscriptRead, FieldTranscriptWrite};
 use crate::utils::{
     arithmetic::{barycentric_interpolate, barycentric_weights},
     ProtocolError,
 };
 use ff::PrimeField;
 use std::fmt::Debug;
+use transcript_utils::transcript::{FieldTranscriptRead, FieldTranscriptWrite};
 
 #[derive(Clone, Debug)]
 pub struct ClassicSumcheck;
@@ -88,7 +88,7 @@ impl<F: PrimeField> SumCheck<F> for ClassicSumcheck {
                 }
             }
             // append the round polynomial (i.e. prover message) to the transcript
-            transcript.write_field_elements(&r_polys[round_index])?;
+            transcript.write_field_elements(&r_polys[round_index]).map_err(|_| ProtocolError::Transcript)?;
 
             // generate challenge α_i = H( transcript );
             let alpha = transcript.squeeze_challenge();
@@ -97,7 +97,7 @@ impl<F: PrimeField> SumCheck<F> for ClassicSumcheck {
             if round_index == pp.num_vars - 1 {
                 // last round
                 evaluations = virtual_poly.evaluations(alpha);
-                transcript.write_field_elements(&evaluations)?;
+                transcript.write_field_elements(&evaluations).map_err(|_| ProtocolError::Transcript)?;
             } else {
                 // update prover state polynomials
                 virtual_poly.fold_into_half(alpha);
@@ -123,13 +123,13 @@ impl<F: PrimeField> SumCheck<F> for ClassicSumcheck {
             let mut msgs = Vec::with_capacity(vp.num_vars);
             let mut challenges = Vec::with_capacity(vp.num_vars);
             for _ in 0..vp.num_vars {
-                msgs.push(transcript.read_field_elements(vp.max_degree + 1)?);
+                msgs.push(transcript.read_field_elements(vp.max_degree + 1).map_err(|_| ProtocolError::Transcript)?);
                 challenges.push(transcript.squeeze_challenge());
             }
             (msgs, challenges)
         };
 
-        let evaluations = transcript.read_field_elements(num_polys)?;
+        let evaluations = transcript.read_field_elements(num_polys).map_err(|_| ProtocolError::Transcript)?;
         let mut expected_sum = sum.clone();
         let points_vec: Vec<F> = (0..vp.max_degree + 1)
             .map(|i| F::from_u128(i as u128))
@@ -176,14 +176,12 @@ mod test {
     use crate::{
         poly::multilinear::MultilinearPolynomial,
         sumcheck::{EvalTable, SumCheck, VirtualPolynomial},
-        utils::{
-            transcript::{InMemoryTranscript, Keccak256Transcript},
-            ProtocolError,
-        },
+        utils::ProtocolError,
     };
     use ff::Field;
     use halo2curves::bn256::Fr;
     use itertools::Itertools;
+    use transcript_utils::transcript::{InMemoryTranscript, Keccak256Transcript};
 
     use super::{ClassicSumcheck, ClassicSumcheckProverParam, ClassicSumcheckVerifierParam};
 

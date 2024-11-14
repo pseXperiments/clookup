@@ -7,10 +7,10 @@ use crate::{
     poly::multilinear::MultilinearPolynomial,
     utils::{
         arithmetic::product,
-        transcript::{FieldTranscriptRead, FieldTranscriptWrite},
         ProtocolError,
     },
 };
+use transcript_utils::transcript::{FieldTranscriptRead, FieldTranscriptWrite};
 
 pub mod classic;
 pub mod cuda;
